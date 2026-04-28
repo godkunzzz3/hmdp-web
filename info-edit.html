@@ -6,8 +6,8 @@
   <title>黑马点评</title>
   <!-- 引入样式 -->
   <link rel="stylesheet" href="./css/element.css">
-  <link href="./css/main.css" rel="stylesheet">
-  <link href="./css/info.css" rel="stylesheet">
+  <link href="./css/main.css?v=20260428-2" rel="stylesheet">
+  <link href="./css/info.css?v=20260428-2" rel="stylesheet">
 
   <style type="text/css">
 
@@ -21,7 +21,7 @@
   </div>
   <div class="edit-container">
     <div class="info-box">
-      <div class="info-item">
+      <div class="info-item" @click="chooseAvatar">
         <div class="info-label">头像</div>
         <div class="info-btn">
           <img width="35" :src="user.icon || '/imgs/icons/default-icon.png'" alt="">
@@ -29,7 +29,7 @@
         </div>
       </div>
       <div class="divider"></div>
-      <div class="info-item">
+      <div class="info-item" @click="editNickName">
         <div class="info-label">昵称</div>
         <div class="info-btn">
           <div>{{user.nickName}}</div>
@@ -39,7 +39,7 @@
         </div>
       </div>
       <div class="divider"></div>
-      <div class="info-item">
+      <div class="info-item" @click="editIntroduce">
         <div class="info-label">个人介绍</div>
         <div class="info-btn">
           <div style="overflow: hidden; width: 150px;text-align: right">{{info.introduce || '介绍一下自己'}}</div>
@@ -50,15 +50,15 @@
       </div>
     </div>
     <div class="info-box">
-      <div class="info-item">
+      <div class="info-item" @click="editGender">
         <div class="info-label">性别</div>
         <div class="info-btn">
-          <div>{{info.gender || '选择'}}</div>
+          <div>{{genderText}}</div>
           <div><i class="el-icon-arrow-right"></i></div>
         </div>
       </div>
       <div class="divider"></div>
-      <div class="info-item">
+      <div class="info-item" @click="editCity">
         <div class="info-label">城市</div>
         <div class="info-btn">
           <div>{{info.city || '选择'}}</div>
@@ -66,7 +66,7 @@
         </div>
       </div>
       <div class="divider"></div>
-      <div class="info-item">
+      <div class="info-item" @click="editBirthday">
         <div class="info-label">生日</div>
         <div class="info-btn">
           <div>{{info.birthday || '添加'}}</div>
@@ -76,7 +76,7 @@
     </div>
 
     <div class="info-box">
-      <div class="info-item">
+      <div class="info-item" @click="showCredits">
         <div class="info-label">我的积分</div>
         <div class="info-btn">
           <div>查看积分</div>
@@ -84,7 +84,7 @@
         </div>
       </div>
       <div class="divider"></div>
-      <div class="info-item">
+      <div class="info-item" @click="openVip">
         <div class="info-label">会员等级</div>
         <div class="info-btn">
           <div><a href="javascript:void(0)">成为VIP尊享特权</a></div>
@@ -93,14 +93,15 @@
       </div>
     </div>
   </div>
+  <input ref="avatarInput" type="file" accept="image/*" style="display: none" @change="uploadAvatar">
   <foot-bar :active-btn="4"></foot-bar>
 </div>
 <script src="./js/vue.js"></script>
 <script src="./js/axios.min.js"></script>
 <!-- 引入组件库 -->
 <script src="./js/element.js"></script>
-<script src="./js/common.js"></script>
-<script src="./js/footer.js"></script>
+<script src="./js/common.js?v=20260428-2"></script>
+<script src="./js/footer.js?v=20260428-2"></script>
 <script>
 
   const app = new Vue({
@@ -108,6 +109,17 @@
     data: {
       user: "",
       info: {},
+    },
+    computed: {
+      genderText() {
+        if (this.info.gender === true) {
+          return "女";
+        }
+        if (this.info.gender === false) {
+          return "男";
+        }
+        return "选择";
+      }
     },
     created() {
       this.checkLogin();
@@ -118,12 +130,110 @@
         axios.get("/user/me")
         .then(({data}) => {
           this.user = data;
-          this.info = JSON.parse(sessionStorage.getItem("userInfo")) || {}
+          this.loadUserInfo();
         })
         .catch(err => {
           this.$message.error(err);
           setTimeout(() => location.href = "login.html", 1000)
         })
+      },
+      loadUserInfo() {
+        axios.get("/user/info")
+        .then(({data}) => {
+          this.info = data || {};
+          sessionStorage.setItem("userInfo", JSON.stringify(this.info));
+        })
+        .catch(() => {
+          this.info = JSON.parse(sessionStorage.getItem("userInfo")) || {};
+        })
+      },
+      updateUser(payload) {
+        return axios.put("/user", Object.assign({}, this.user, payload))
+        .then(() => {
+          this.user = Object.assign({}, this.user, payload);
+          this.$message.success("保存成功");
+        })
+        .catch(err => this.$message.error(err));
+      },
+      updateInfo(payload) {
+        const info = Object.assign({}, this.info, payload);
+        return axios.put("/user/info", info)
+        .then(() => {
+          this.info = info;
+          sessionStorage.setItem("userInfo", JSON.stringify(this.info));
+          this.$message.success("保存成功");
+        })
+        .catch(err => this.$message.error(err));
+      },
+      editNickName() {
+        this.$prompt("请输入昵称", "修改昵称", {
+          inputValue: this.user.nickName || "",
+          inputPattern: /^.{1,20}$/,
+          inputErrorMessage: "昵称长度为1到20个字符"
+        }).then(({ value }) => this.updateUser({ nickName: value }));
+      },
+      editIntroduce() {
+        this.$prompt("请输入个人介绍", "修改个人介绍", {
+          inputValue: this.info.introduce || "",
+          inputType: "textarea",
+          inputPattern: /^.{0,128}$/,
+          inputErrorMessage: "个人介绍不能超过128个字符"
+        }).then(({ value }) => this.updateInfo({ introduce: value }));
+      },
+      editGender() {
+        this.$confirm("请选择性别", "修改性别", {
+          confirmButtonText: "女",
+          cancelButtonText: "男",
+          distinguishCancelAndClose: true,
+          type: "info"
+        }).then(() => this.updateInfo({ gender: true }))
+        .catch(action => {
+          if (action === "cancel") {
+            this.updateInfo({ gender: false });
+          }
+        });
+      },
+      editCity() {
+        this.$prompt("请输入城市", "修改城市", {
+          inputValue: this.info.city || "",
+          inputPattern: /^.{1,64}$/,
+          inputErrorMessage: "城市名称长度为1到64个字符"
+        }).then(({ value }) => this.updateInfo({ city: value }));
+      },
+      editBirthday() {
+        this.$prompt("请输入生日，例如 2000-01-01", "修改生日", {
+          inputValue: this.info.birthday || "",
+          inputPattern: /^\d{4}-\d{2}-\d{2}$/,
+          inputErrorMessage: "生日格式必须是 yyyy-MM-dd"
+        }).then(({ value }) => this.updateInfo({ birthday: value }));
+      },
+      chooseAvatar() {
+        this.$refs.avatarInput.click();
+      },
+      uploadAvatar(e) {
+        const file = e.target.files[0];
+        if (!file) {
+          return;
+        }
+        const form = new FormData();
+        form.append("file", file);
+        axios.post("/upload/avatar", form, {
+          headers: { "Content-Type": "multipart/form-data" }
+        }).then(({ data }) => {
+          return this.updateUser({ icon: data });
+        }).finally(() => {
+          e.target.value = "";
+        });
+      },
+      showCredits() {
+        axios.get("/user/credits")
+        .then(({data}) => this.$alert("当前积分：" + data, "我的积分"))
+        .catch(err => this.$message.error(err));
+      },
+      openVip() {
+        axios.post("/user/vip")
+        .then(() => this.$message.success("VIP开通成功"))
+        .catch(err => this.$message.error(err));
       },
       goBack(){
         history.back();

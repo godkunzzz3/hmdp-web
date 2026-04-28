@@ -24,11 +24,15 @@ axios.interceptors.response.use(function (response) {
 }, function (error) {
   // 一般是服务端异常或者网络异常
   console.log(error)
-  if(error.response.status == 401){
-    // 未登录，跳转
-    setTimeout(() => {
-      location.href = "/login.html"
-    }, 200);
+  if(error.response && error.response.status == 401){
+    // 公共浏览页不强制跳登录，避免首页/地图被某个需要登录的接口打断。
+    const publicPages = ["/", "/index.html", "/map.html", "/message.html", "/shop-list.html", "/shop-detail.html", "/blog-detail.html"];
+    if (!publicPages.includes(location.pathname)) {
+      // 个人中心、发笔记等私有页面仍然需要登录后访问。
+      setTimeout(() => {
+        location.href = "/login.html"
+      }, 200);
+    }
     return Promise.reject("请先登录");
   }
   return Promise.reject("服务器异常");

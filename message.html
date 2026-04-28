@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  <title>消息中心</title>
+  <link rel="stylesheet" href="./css/element.css">
+  <link href="./css/main.css?v=20260428-2" rel="stylesheet">
+  <style>
+    .msg-page { height: 100%; background: #f6f7fb; overflow-y: auto; box-sizing: border-box; padding-bottom: 78px; }
+    .msg-header { padding: 18px 16px 14px; color: #fff; background: linear-gradient(135deg, #ff6633, #ff9f43); }
+    .msg-title { font-size: 22px; font-weight: 800; }
+    .msg-subtitle { margin-top: 6px; opacity: .86; }
+    .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 12px; }
+    .quick-card { background: #fff; border-radius: 12px; padding: 14px 8px; text-align: center; box-shadow: 0 8px 22px rgba(31,35,41,.06); }
+    .quick-card i { color: #ff6633; font-size: 24px; }
+    .quick-card div { margin-top: 6px; font-weight: 700; }
+    .msg-list { padding: 0 12px; }
+    .msg-card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; display: flex; gap: 12px; box-shadow: 0 8px 22px rgba(31,35,41,.06); }
+    .msg-icon { width: 42px; height: 42px; border-radius: 50%; background: #fff1eb; color: #ff6633; display: flex; align-items: center; justify-content: center; font-size: 22px; flex: 0 0 auto; }
+    .msg-main { flex: 1; min-width: 0; }
+    .msg-name { font-size: 15px; font-weight: 800; }
+    .msg-text { margin-top: 5px; color: #7b828c; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .msg-time { margin-top: 6px; color: #b0b6bf; font-size: 11px; }
+  </style>
+</head>
+<body>
+<div id="app" class="msg-page">
+  <div class="msg-header">
+    <div class="msg-title">消息中心</div>
+    <div class="msg-subtitle">关注、点赞、系统通知都会在这里汇总。</div>
+  </div>
+  <div class="quick-grid">
+    <div class="quick-card" @click="toast('点赞通知')"><i class="el-icon-thumb"></i><div>点赞</div></div>
+    <div class="quick-card" @click="toast('评论通知')"><i class="el-icon-chat-dot-round"></i><div>评论</div></div>
+    <div class="quick-card" @click="toast('关注通知')"><i class="el-icon-user"></i><div>关注</div></div>
+  </div>
+  <div class="msg-list">
+    <div class="msg-card" v-for="m in messages" :key="m.id">
+      <div class="msg-icon"><i :class="m.icon"></i></div>
+      <div class="msg-main">
+        <div class="msg-name">{{m.title}}</div>
+        <div class="msg-text">{{m.content}}</div>
+        <div class="msg-time">{{m.time}}</div>
+      </div>
+    </div>
+  </div>
+  <foot-bar :active-btn="3"></foot-bar>
+</div>
+<script src="./js/vue.js"></script>
+<script src="./js/axios.min.js"></script>
+<script src="./js/element.js"></script>
+<script src="./js/common.js?v=20260428-2"></script>
+<script src="./js/footer.js?v=20260428-2"></script>
+<script>
+  new Vue({
+    el: "#app",
+    data: {
+      messages: [
+        {id: 1, icon: "el-icon-bell", title: "系统通知", content: "欢迎回来，今天也去发现一家好店吧。", time: "刚刚"},
+        {id: 2, icon: "el-icon-star-off", title: "运营提醒", content: "秒杀券、签到、附近商户等 Redis 功能已接入。", time: "今天"},
+        {id: 3, icon: "el-icon-chat-line-round", title: "互动消息", content: "暂无新的评论和关注，发布探店笔记后这里会更热闹。", time: "今天"}
+      ]
+    },
+    methods: {
+      toast(name) {
+        this.$message.info(name + "暂未接入真实消息表，当前为前端展示页");
+      }
+    }
+  })
+</script>
+</body>
+</html>

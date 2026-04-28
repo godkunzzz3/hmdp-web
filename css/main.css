@@ -4,9 +4,23 @@ html {
 }
 body{
     margin: 0;
+    color: #1f2329;
+    background: #eef1f6;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
-html,body,#app{
+html,body{
     height: 100%;
+}
+#app{
+    width: 100%;
+    max-width: 430px;
+    min-height: 100%;
+    height: 100%;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+    background: #f6f7fb;
+    box-shadow: 0 0 34px rgba(31, 35, 41, 0.14);
 }
 
 .el-tabs__item {
@@ -19,41 +33,79 @@ html,body,#app{
 }
 .foot {
     width: 100%;
-    height: 8%;
+    max-width: 430px;
+    height: 64px;
     display: flex;
     justify-content: center;
     align-items: center;
-    box-shadow: 0 -1px 2px 1px rgba(0, 0, 0, 0.1);
-    position: absolute;
+    box-shadow: 0 -8px 22px rgba(30, 35, 45, 0.08);
+    position: fixed;
     bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
 }
 .foot .add-btn {
-    width: 38px;
-    height: 38px;
-    box-shadow: 0 0 3px 2px rgba(0, 0, 0, 0.1);
-    border-radius: 18px;
+    width: 46px;
+    height: 46px;
+    box-shadow: 0 8px 18px rgba(255, 102, 51, 0.28);
+    border-radius: 50%;
 }
 .foot-box{
     width: 20%;
     color: #82848a;
     text-align: center;
+    cursor: pointer;
+    transition: color .18s ease, transform .18s ease;
+    text-decoration: none;
+    display: block;
+    -webkit-tap-highlight-color: transparent;
+}
+.foot-box:active{
+    transform: translateY(1px);
 }
 .foot-view {
-    font-size: 26px;
+    font-size: 23px;
 }
 .foot-text{
-    font-size: 8px;
-    margin-top: -4px;
+    font-size: 10px;
+    margin-top: -2px;
 }
 .foot-text, .foot-view{
     text-align: center;
 }
 .active{
     color: #ff6633;
+    font-weight: 700;
 }
 
 /*element-ui的评价星星间隙*/
 .el-rate__icon {
     margin-right: 0;
+}
+
+.page-safe-bottom {
+    padding-bottom: 72px;
+}
+
+.empty-state {
+    color: #9aa0a6;
+    text-align: center;
+    padding: 36px 16px;
+    line-height: 24px;
+}
+@media (max-width: 430px) {
+    body {
+        background: #f6f7fb;
+    }
+    #app {
+        max-width: none;
+        box-shadow: none;
+    }
+    .foot {
+        max-width: none;
+    }
 }
 

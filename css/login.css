@@ -33,31 +33,44 @@
 .login-form {
     height: 85%;
 }
-.login-radio {
-    height: 15%;
+.login-agreement {
     width: 100%;
+    min-height: 72px;
+    box-sizing: border-box;
     display: flex;
-    align-items: start;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #fff;
+    color: #333;
+    line-height: 20px;
+    cursor: pointer;
+    box-shadow: 0 8px 22px rgba(31, 35, 41, 0.06);
+    -webkit-tap-highlight-color: transparent;
 }
-input[type="radio"] + label::before {
-    content: "\a0"; /*不换行空格*/
-    display: inline-block;
-    vertical-align: middle;
-    font-size: 12px;
-    width: 0.7em;
-    height: 0.7em;
-    margin-right: .4em;
+.login-agreement.checked {
+    background: #fff7f3;
+    box-shadow: 0 8px 22px rgba(255, 102, 51, 0.12);
+}
+.agreement-check {
+    width: 30px;
+    height: 30px;
+    border: 2px solid #ff6633;
     border-radius: 50%;
-    border: 2px solid #F63;
-    text-indent: .15em;
-    line-height: 1; 
-    padding: .2em;
+    color: #fff;
+    background: #fff;
+    flex: 0 0 auto;
+    margin-top: 2px;
+    padding: 0;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-input[type="radio"]:checked + label::before {
-    background-color: #F63;
-    background-clip: content-box;
-    padding: .2em;
+.login-agreement.checked .agreement-check {
+    background: #ff6633;
 }
-input[type="radio"] {
-    opacity: 0;
+.agreement-text {
+    flex: 1;
 }

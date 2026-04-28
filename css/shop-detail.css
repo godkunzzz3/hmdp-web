@@ -147,13 +147,15 @@
 }
 
 .voucher-box {
-    background-color: #fff1f1;
-    border-radius: 5px;
+    background: linear-gradient(135deg, #fff7f2, #fff);
+    border: 1px solid rgba(255, 102, 51, .12);
+    border-radius: 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 5px;
+    padding: 10px 8px;
     margin: 10px 0;
+    box-shadow: 0 8px 22px rgba(31, 35, 41, 0.06);
 }
 
 .voucher-circle {
@@ -218,6 +220,8 @@
     width: 65px;
     text-align: center;
     border-radius: 15px;
+    cursor: pointer;
+    box-shadow: 0 6px 14px rgba(255, 102, 51, .22);
 }
 .seckill-box{
     display: flex;
@@ -256,6 +260,8 @@
     justify-content: space-between;
     font-size: 14px;
     font-weight: bold;
+    cursor: pointer;
+    padding: 2px 0 8px;
 }
 .comments-head span {
     font-size: 12px;
@@ -268,13 +274,15 @@
     justify-content: space-between;
 }
 .comment-tags div {
-    width: 25%;
-    border: 1px solid #427fc4;
-    border-radius: 5px;
+    width: 26%;
+    border: 1px solid rgba(255, 102, 51, .28);
+    border-radius: 14px;
     text-align: center;
-    color: #427fc4;
-    padding: 5px 10px;
+    color: #ff6633;
+    background: #fff7f3;
+    padding: 5px 6px;
     margin-top: 7px;
+    font-size: 12px;
 }
 .comment-list {
     margin-top: 15px;
@@ -283,6 +291,9 @@
     display: flex;
     justify-content: space-between;
     margin-bottom: 15px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 10px 0;
 }
 .comment-icon {
     width: 55px;
@@ -317,4 +328,21 @@
     width: 92px;
     border-radius: 5px;
     margin-right: 5px;
+    object-fit: cover;
+}
+.comment-more {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 0;
+    border-top: 1px solid #f1f1f1;
+    margin-top: 10px;
+    color: #ff6633;
+    cursor: pointer;
+}
+.comment-dialog .el-dialog__body {
+    padding: 0 14px 16px;
+}
+.dialog-comment-list {
+    max-height: 62vh;
+    overflow-y: auto;
 }

@@ -7,8 +7,8 @@
   <!-- 引入样式 -->
   <link rel="stylesheet" href="./css/element.css">
 
-  <link href="./css/shop-detail.css" rel="stylesheet">
-  <link href="./css/main.css" rel="stylesheet">
+  <link href="./css/shop-detail.css?v=20260428-4" rel="stylesheet">
+  <link href="./css/main.css?v=20260428-2" rel="stylesheet">
 
   <style type="text/css">
 
@@ -81,58 +81,68 @@
           <div class="seckill-stock">剩余 <span>{{v.stock}}</span> 张</div>
           <div class="seckill-time">{{formatTime(v)}}</div>
         </div>
-        <div class="voucher-btn" v-else>抢购</div>
+        <div class="voucher-btn" v-else @click="buyVoucher(v)">购买</div>
       </div>
     </div>
+    <div class="empty-state" v-if="vouchers.length === 0">当前店铺暂无可购买优惠券</div>
   </div>
   <div class="shop-divider"></div>
   <div class="shop-comments">
-    <div class="comments-head">
-      <div>网友评价 <span>（119）</span></div>
+    <div class="comments-head" @click="openComments">
+      <div>网友评价 <span>（{{comments.length}}）</span></div>
       <div><i class="el-icon-arrow-right"></i></div>
     </div>
     <div class="comment-tags">
-      <div class="tag">味道赞(19)</div>
-      <div class="tag">牛肉赞(16)</div>
-      <div class="tag">菜品不错(11)</div>
-      <div class="tag">回头客(4)</div>
-      <div class="tag">分量足(4)</div>
-      <div class="tag">停车方便(3)</div>
-      <div class="tag">海鲜棒(3)</div>
-      <div class="tag">饮品赞(3)</div>
-      <div class="tag">朋友聚餐(6)</div>
+      <div class="tag" v-for="tag in commentTags" :key="tag">{{tag}}</div>
     </div>
     <div class="comment-list">
-      <div class="comment-box" v-for="i in 3" :key="i">
+      <div class="comment-box" v-for="c in previewComments" :key="c.id">
         <div class="comment-icon">
-          <img src="https://p0.meituan.net/userheadpicbackend/57e44d6eba01aad0d8d711788f30a126549507.jpg%4048w_48h_1e_1c_1l%7Cwatermark%3D0" alt="">
+          <img :src="c.icon" alt="">
         </div>
         <div class="comment-info">
-          <div class="comment-user">叶小乙 <span>Lv5</span></div>
+          <div class="comment-user">{{c.user}} <span>{{c.level}}</span></div>
           <div style="display: flex;">
             打分
-            <el-rate disabled v-model="4.5" ></el-rate>
+            <el-rate disabled v-model="c.score" ></el-rate>
           </div>
           <div style="padding: 5px 0; font-size: 14px">
-            某平台上买的券，价格可以当工作餐吃，虽然价格便宜，但是这家店一点都没有...
+            {{c.content}}
           </div>
           <div class="comment-images">
-            <img src="https://qcloud.dpfile.com/pc/6T7MfXzx7USPIkSy7jzm40qZSmlHUF2jd-FZUL6WpjE9byagjLlrseWxnl1LcbuSGybIjx5eX6WNgCPvcASYAw.jpg" alt="">
-            <img src="https://qcloud.dpfile.com/pc/sZ5q-zgglv4VXEWU71xCFjnLM_jUHq-ylq0GKivtrz3JksWQ1f7oBWZsxm1DWgcaGybIjx5eX6WNgCPvcASYAw.jpg" alt="">
-            <img src="https://qcloud.dpfile.com/pc/xZy6W4NwuRFchlOi43DVLPFsx7KWWvPqifE1JTe_jreqdsBYA9CFkeSm2ZlF0OVmGybIjx5eX6WNgCPvcASYAw.jpg" alt="">
-            <img src="https://qcloud.dpfile.com/pc/xZy6W4NwuRFchlOi43DVLPFsx7KWWvPqifE1JTe_jreqdsBYA9CFkeSm2ZlF0OVmGybIjx5eX6WNgCPvcASYAw.jpg" alt="">
+            <img v-for="img in c.images" :key="img" :src="img" alt="">
           </div>
           <div>
-            浏览641 &nbsp;&nbsp;&nbsp;&nbsp;评论5
+            浏览{{c.views}} &nbsp;&nbsp;&nbsp;&nbsp;评论{{c.replies}}
           </div>
         </div>
       </div>
-      <div style="display: flex; justify-content: space-between;padding: 15px 0; border-top: 1px solid #f1f1f1; margin-top: 10px;">
-        <div>查看全部119条评价</div>
+      <div class="comment-more" @click="openComments">
+        <div>查看全部{{comments.length}}条评价</div>
         <div><i class="el-icon-arrow-right"></i></div>
       </div>
     </div>
   </div>
+  <el-dialog title="全部网友评价" :visible.sync="commentDialogVisible" width="92%" custom-class="comment-dialog">
+    <div class="dialog-comment-list">
+      <div class="comment-box" v-for="c in comments" :key="'dialog-' + c.id">
+        <div class="comment-icon">
+          <img :src="c.icon" alt="">
+        </div>
+        <div class="comment-info">
+          <div class="comment-user">{{c.user}} <span>{{c.level}}</span></div>
+          <div style="display: flex;">
+            打分
+            <el-rate disabled v-model="c.score"></el-rate>
+          </div>
+          <div style="padding: 5px 0; font-size: 14px">{{c.content}}</div>
+          <div class="comment-images">
+            <img v-for="img in c.images" :key="'dialog-img-' + img" :src="img" alt="">
+          </div>
+        </div>
+      </div>
+    </div>
+  </el-dialog>
   <div class="shop-divider"></div>
   <div class="copyright">
     copyright ©2021 hmdp.com
@@ -142,7 +152,7 @@
 <script src="./js/axios.min.js"></script>
 <!-- 引入组件库 -->
 <script src="./js/element.js"></script>
-<script src="./js/common.js"></script>
+<script src="./js/common.js?v=20260428-2"></script>
 <script>
 
   const app = new Vue({
@@ -150,7 +160,15 @@
     data: {
       util,
       shop: {},
-      vouchers: []
+      vouchers: [],
+      commentDialogVisible: false,
+      commentTags: ["味道赞(19)", "环境舒服(16)", "服务热情(11)", "回头客(8)", "分量足(6)", "朋友聚餐(6)"],
+      comments: [
+        {id: 1, user: "叶小乙", level: "Lv5", score: 4.5, views: 641, replies: 5, icon: "/imgs/icons/kkjtbcr.jpg", content: "买了店里的代金券，价格很适合工作日晚餐。服务响应很快，菜品出餐也稳定。", images: ["/imgs/types/ms.png", "/imgs/types/jiuba.png"]},
+        {id: 2, user: "小鱼同学", level: "Lv4", score: 4.8, views: 512, replies: 3, icon: "/imgs/blogs/blog1.jpg", content: "位置很好找，店员会主动介绍套餐规则。整体体验比预期好，适合周末约朋友。", images: ["/imgs/types/KTV.png", "/imgs/types/qzyl.png"]},
+        {id: 3, user: "可爱多", level: "Lv6", score: 4.6, views: 389, replies: 2, icon: "/imgs/icons/default-icon.png", content: "秒杀券很划算，核销流程顺畅。希望活动库存可以再多一点。", images: ["/imgs/types/mjmj.png", "/imgs/types/spa.png"]},
+        {id: 4, user: "运营体验官", level: "Lv7", score: 4.9, views: 728, replies: 8, icon: "/imgs/icons/default-icon.png", content: "店铺详情、优惠券和评价信息都比较完整，适合作为本地生活运营页面的样板。", images: ["/imgs/types/jsyd.png", "/imgs/types/amzl.png"]}
+      ]
     },
     created() {
       // 获取参数
@@ -159,6 +177,11 @@
       this.queryShopById(shopId);
       // 查询优惠券信息
       this.queryVoucher(shopId);
+    },
+    computed: {
+      previewComments() {
+        return this.comments.slice(0, 3);
+      }
     },
     methods: {
       goBack() {
@@ -178,6 +201,27 @@
           this.vouchers = data;
         })
         .catch(this.$message.error)
+      },
+      buyVoucher(v){
+        if(!token){
+          this.$message.error("请先登录")
+          setTimeout(() => location.href = "/login.html", 200);
+          return;
+        }
+        this.$confirm("确认购买「" + v.title + "」吗？购买成功后可在个人主页订单中查看。", "购买代金券", {
+          confirmButtonText: "确认购买",
+          cancelButtonText: "再看看",
+          type: "warning"
+        }).then(() => {
+          axios.post("/voucher-order/" + v.id)
+            .then(({data}) => {
+              this.$message.success("购买成功，订单id：" + data)
+            })
+            .catch(this.$message.error)
+        }).catch(() => {})
+      },
+      openComments(){
+        this.commentDialogVisible = true;
       },
       formatTime(v){
         let b = new Date(v.beginTime);
@@ -224,6 +268,7 @@
         .then(({data}) => {
           // 抢购成功，这里输出订单id，支付功能TODO
           this.$message.success("抢购成功，订单id：" + data)
+          this.queryVoucher(util.getUrlParam("id"));
         })
         .catch(this.$message.error)
       }
