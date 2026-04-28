@@ -33,6 +33,42 @@
 .login-form {
     height: 85%;
 }
+
+.merchant-login-card {
+    margin-top: 18px;
+    padding: 14px;
+    background: #fff;
+    border: 1px solid #ffe0d5;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(255, 102, 51, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.merchant-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #20242a;
+}
+.merchant-sub {
+    margin-top: 5px;
+    color: #8c939d;
+    line-height: 18px;
+    font-size: 12px;
+}
+.merchant-btn {
+    flex: 0 0 auto;
+    border-color: #ff6633;
+    color: #ff6633;
+    background: #fff7f3;
+}
+.merchant-btn:hover,
+.merchant-btn:focus {
+    border-color: #ff6633;
+    color: #fff;
+    background: #ff6633;
+}
 .login-agreement {
     width: 100%;
     min-height: 72px;

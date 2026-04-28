@@ -32,8 +32,15 @@
         <el-input placeholder="请输入验证码" v-model="form.code">
         </el-input>
         <div style="text-align: center; color: #8c939d;margin: 5px 0">未注册的手机号码验证后自动创建账户</div>
-        <el-button @click="login" style="width: 100%; background-color:#f63; color: #fff;">登录</el-button>
+        <el-button @click="login('user')" style="width: 100%; background-color:#f63; color: #fff;">登录</el-button>
         <div style="text-align: right; color:#333333; margin: 5px 0"><a href="/login2.html">密码登录</a></div>
+        <div class="merchant-login-card">
+          <div>
+            <div class="merchant-title">商家运营入口</div>
+            <div class="merchant-sub">已绑定店铺的账号可进入商家运营 Agent 工作台</div>
+          </div>
+          <el-button class="merchant-btn" @click="login('merchant')">商家登录</el-button>
+        </div>
       </div>
       <div class="login-agreement" :class="{checked: radio}" @click="toggleAgreement">
         <button class="agreement-check" type="button" :aria-pressed="radio ? 'true' : 'false'">
@@ -67,7 +74,7 @@
       }
     },
     methods: {
-      login(){
+      login(target){
         if(!this.radio){
           this.$message.error("请先确认阅读用户协议！");
           return
@@ -82,10 +89,24 @@
               // 保存用户信息到session
               sessionStorage.setItem("token", data);
             }
-            // 跳转到首页
-            location.href = "/index.html"
+            if (target === "merchant") {
+              return axios.get("/merchant/me", {headers: {authorization: data}});
+            }
+            location.href = "/index.html";
+            return Promise.reject("redirected");
         })
-        .catch(err => this.$message.error(err))
+        .then(({data}) => {
+            if (data && data.isMerchant) {
+              location.href = "/merchant-agent.html";
+            } else {
+              this.$message.error("当前账号未绑定商家店铺");
+            }
+        })
+        .catch(err => {
+            if (err !== "redirected") {
+              this.$message.error(err)
+            }
+        })
       },
       toggleAgreement(){
         // 学习提示：把整行协议做成点击区域，比只点小圆点更适合移动端。

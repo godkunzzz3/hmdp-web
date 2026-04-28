@@ -1,0 +1,422 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: #f5f6f8;
+  color: #20242a;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#merchant-app {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 264px minmax(620px, 1fr) 360px;
+  background: #f5f6f8;
+}
+
+.side {
+  min-height: 100vh;
+  padding: 22px 18px;
+  background: #ffffff;
+  border-right: 1px solid #ebeef2;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #ff6633;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.brand-title {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.brand-sub {
+  font-size: 12px;
+  color: #8a929f;
+  margin-top: 2px;
+}
+
+.nav-item {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: #68707c;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.nav-item.active {
+  background: #fff2ed;
+  color: #ff6633;
+  font-weight: 700;
+}
+
+.side-section {
+  margin-top: 24px;
+}
+
+.section-title {
+  font-size: 12px;
+  color: #9aa2ad;
+  margin-bottom: 10px;
+}
+
+.shop-card {
+  padding: 13px;
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.shop-name {
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.shop-meta {
+  color: #7e8792;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.session-card {
+  padding: 12px;
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.session-card:hover,
+.session-card.active {
+  border-color: #ff8a62;
+  box-shadow: 0 8px 20px rgba(255, 102, 51, .10);
+}
+
+.session-card-title {
+  font-size: 13px;
+  font-weight: 800;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.session-card-meta {
+  margin-top: 7px;
+  font-size: 12px;
+  color: #8c95a1;
+}
+
+.main {
+  padding: 26px 28px;
+  overflow-y: auto;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.page-title {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.page-sub {
+  color: #7d8590;
+  margin-top: 7px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.kpi-card {
+  background: #fff;
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.kpi-label {
+  color: #88919d;
+  font-size: 12px;
+}
+
+.kpi-value {
+  margin-top: 8px;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.report-card,
+.chat-card,
+.panel-card {
+  background: #fff;
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+}
+
+.report-card {
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.card-title {
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.summary {
+  color: #404751;
+  line-height: 24px;
+  background: #fff7f4;
+  border-radius: 8px;
+  padding: 13px 14px;
+  margin-bottom: 16px;
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.analysis-box {
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.mini-title {
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid #f1f3f6;
+  color: #69727e;
+}
+
+.metric-row:last-child {
+  border-bottom: 0;
+}
+
+.metric-row strong {
+  color: #20242a;
+}
+
+.chart-lines {
+  height: 112px;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.bar {
+  flex: 1;
+  min-width: 18px;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, #ff8a62, #ff6633);
+}
+
+.chat-card {
+  padding: 18px;
+}
+
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.bubble {
+  max-width: 82%;
+  padding: 12px 14px;
+  border-radius: 8px;
+  line-height: 22px;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: #ff6633;
+  color: #fff;
+}
+
+.bubble.assistant {
+  align-self: flex-start;
+  background: #f2f4f7;
+  color: #303741;
+}
+
+.right {
+  min-height: 100vh;
+  padding: 26px 18px;
+  background: #ffffff;
+  border-left: 1px solid #ebeef2;
+  overflow-y: auto;
+}
+
+.suggestion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.suggestion-card,
+.draft-card {
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+}
+
+.suggestion-title {
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.suggestion-summary {
+  color: #69727e;
+  line-height: 21px;
+  font-size: 13px;
+}
+
+.tag-row {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #f3f6f9;
+  color: #69727e;
+  font-size: 12px;
+}
+
+.tag.orange {
+  background: #fff2ed;
+  color: #ff6633;
+}
+
+.draft-card {
+  margin-top: 18px;
+  background: #fffaf7;
+  border-color: #ffd7c8;
+}
+
+.draft-price {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.draft-price strong {
+  font-size: 28px;
+  color: #ff6633;
+}
+
+.draft-price span {
+  color: #7d8590;
+}
+
+.draft-meta {
+  color: #68707c;
+  line-height: 24px;
+}
+
+.empty-block {
+  padding: 24px 14px;
+  text-align: center;
+  color: #9aa2ad;
+  border: 1px dashed #dce2ea;
+  border-radius: 8px;
+}
+
+.el-button--primary {
+  background: #ff6633;
+  border-color: #ff6633;
+}
+
+.el-button--primary:hover,
+.el-button--primary:focus {
+  background: #f05a29;
+  border-color: #f05a29;
+}
+
+@media (max-width: 1100px) {
+  #merchant-app {
+    grid-template-columns: 220px minmax(540px, 1fr);
+  }
+
+  .right {
+    grid-column: 1 / -1;
+    min-height: auto;
+    border-left: 0;
+    border-top: 1px solid #ebeef2;
+  }
+}
