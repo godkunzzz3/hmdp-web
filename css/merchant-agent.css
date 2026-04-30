@@ -168,6 +168,16 @@ body {
   align-items: center;
 }
 
+.view-tip {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid #ffd7c8;
+  border-radius: 8px;
+  background: #fff7f4;
+  color: #ff6633;
+  font-size: 13px;
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -259,6 +269,113 @@ body {
 
 .metric-row strong {
   color: #20242a;
+}
+
+.table-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 150px 86px 210px;
+  gap: 12px;
+  align-items: center;
+  padding: 13px;
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.draft-row {
+  cursor: pointer;
+}
+
+.draft-row:hover {
+  border-color: #ff8a62;
+  box-shadow: 0 8px 20px rgba(255, 102, 51, .08);
+}
+
+.row-title {
+  font-weight: 900;
+  color: #20242a;
+  line-height: 20px;
+}
+
+.row-sub {
+  margin-top: 5px;
+  color: #8a929f;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.row-price {
+  color: #ff6633;
+  font-weight: 900;
+}
+
+.row-status {
+  display: inline-flex;
+  justify-content: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  align-items: center;
+  background: #f3f6f9;
+  color: #68707c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-1 {
+  background: #fff7e6;
+  color: #b26a00;
+}
+
+.status-2 {
+  background: #ecf8f1;
+  color: #26834d;
+}
+
+.status-3 {
+  background: #f4f5f7;
+  color: #747d8a;
+}
+
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.timeline-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f3f6;
+}
+
+.timeline-item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.timeline-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #ff6633;
+  box-shadow: 0 0 0 4px #fff2ed;
 }
 
 .chart-lines {
@@ -418,5 +535,14 @@ body {
     min-height: auto;
     border-left: 0;
     border-top: 1px solid #ebeef2;
+  }
+
+  .table-row {
+    grid-template-columns: 1fr;
+  }
+
+  .row-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }

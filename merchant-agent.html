@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
   <title>商家运营 Agent</title>
   <link rel="stylesheet" href="./css/element.css">
-  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260428-1">
+  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260430-1">
 </head>
 <body>
 <div id="merchant-app">
@@ -18,10 +18,10 @@
       </div>
     </div>
 
-    <div class="nav-item active"><i class="el-icon-data-analysis"></i>运营总览</div>
-    <div class="nav-item"><i class="el-icon-chat-dot-round"></i>Agent 会话</div>
-    <div class="nav-item"><i class="el-icon-tickets"></i>优惠券草稿</div>
-    <div class="nav-item"><i class="el-icon-document-checked"></i>操作审计</div>
+    <div class="nav-item" :class="{active: activeView === 'overview'}" @click="switchView('overview')"><i class="el-icon-data-analysis"></i>运营总览</div>
+    <div class="nav-item" :class="{active: activeView === 'sessions'}" @click="switchView('sessions')"><i class="el-icon-chat-dot-round"></i>Agent 会话</div>
+    <div class="nav-item" :class="{active: activeView === 'drafts'}" @click="switchView('drafts')"><i class="el-icon-tickets"></i>优惠券草稿</div>
+    <div class="nav-item" :class="{active: activeView === 'actions'}" @click="switchView('actions')"><i class="el-icon-document-checked"></i>操作审计</div>
 
     <div class="side-section">
       <div class="section-title">当前店铺</div>
@@ -55,11 +55,13 @@
           <el-option label="近7天" value="LAST_7_DAYS"></el-option>
           <el-option label="近30天" value="LAST_30_DAYS"></el-option>
         </el-select>
-        <el-button type="primary" size="small" icon="el-icon-magic-stick" @click="generateReport">生成报告</el-button>
+        <el-button type="primary" size="small" icon="el-icon-magic-stick" :loading="reportLoading" @click="generateReport">生成报告</el-button>
       </div>
     </div>
 
-    <section class="kpi-grid">
+    <div class="view-tip" v-if="pageMessage">{{pageMessage}}</div>
+
+    <section class="kpi-grid" v-if="activeView === 'overview'">
       <div class="kpi-card">
         <div class="kpi-label">周期订单</div>
         <div class="kpi-value">{{metric('totalOrders')}}</div>
@@ -78,7 +80,7 @@
       </div>
     </section>
 
-    <section class="report-card">
+    <section class="report-card" v-if="activeView === 'overview'">
       <div class="card-head">
         <div class="card-title">运营报告</div>
         <el-tag size="mini" type="warning">{{report.dateRange || 'LAST_7_DAYS'}}</el-tag>
@@ -102,7 +104,7 @@
       </div>
     </section>
 
-    <section class="chat-card">
+    <section class="chat-card" v-if="activeView === 'overview' || activeView === 'sessions'">
       <div class="card-head">
         <div class="card-title">会话记录</div>
       </div>
@@ -110,6 +112,46 @@
         <div class="bubble" :class="m.role" v-for="m in messages" :key="m.messageId">{{m.content}}</div>
       </div>
       <div class="empty-block" v-else>选择左侧会话或生成一份报告</div>
+    </section>
+
+    <section class="report-card" v-if="activeView === 'drafts'">
+      <div class="card-head">
+        <div class="card-title">优惠券草稿</div>
+        <el-button size="mini" icon="el-icon-refresh" :loading="draftLoading" @click="loadDrafts">刷新</el-button>
+      </div>
+      <div class="table-list" v-if="drafts.length">
+        <div class="table-row draft-row" v-for="d in drafts" :key="d.draftId" @click="openDraft(d)">
+          <div>
+            <div class="row-title">{{d.title}}</div>
+            <div class="row-sub">{{d.draftTypeName}} · {{formatTime(d.beginTime)}} - {{formatTime(d.endTime)}}</div>
+          </div>
+          <div class="row-price">¥{{price(d.payValue)}} / 抵 ¥{{price(d.actualValue)}}</div>
+          <div class="row-status" :class="'status-' + d.status">{{d.statusName}}</div>
+          <div class="row-actions">
+            <el-button size="mini" type="primary" plain @click.stop="openDraft(d)">查看</el-button>
+            <el-button size="mini" type="primary" @click.stop="confirmDraft(d)" :disabled="d.status !== 1">确认</el-button>
+            <el-button size="mini" @click.stop="rejectDraft(d)" :disabled="d.status !== 1">拒绝</el-button>
+          </div>
+        </div>
+      </div>
+      <div class="empty-block" v-else>暂无草稿，先在右侧建议中生成一个活动草稿</div>
+    </section>
+
+    <section class="report-card" v-if="activeView === 'actions'">
+      <div class="card-head">
+        <div class="card-title">操作审计</div>
+        <el-button size="mini" icon="el-icon-refresh" :loading="actionLoading" @click="loadActions">刷新</el-button>
+      </div>
+      <div class="timeline-list" v-if="actions.length">
+        <div class="timeline-item" v-for="a in actions" :key="a.actionId">
+          <div class="timeline-dot"></div>
+          <div>
+            <div class="row-title">{{a.actionTypeName}} · {{a.targetTypeName}}</div>
+            <div class="row-sub">{{a.operatorTypeName}}操作 · {{formatTime(a.createTime)}} · {{a.statusName}}</div>
+          </div>
+        </div>
+      </div>
+      <div class="empty-block" v-else>暂无操作记录</div>
     </section>
   </main>
 
@@ -126,7 +168,7 @@
           <span class="tag">{{s.riskLevelName}}</span>
           <span class="tag">{{s.statusName}}</span>
         </div>
-        <el-button size="mini" type="primary" plain @click="createDraft(s)" :disabled="s.status === 4">生成草稿</el-button>
+        <el-button size="mini" type="primary" plain :loading="creatingSuggestionId === s.suggestionId" @click="createDraft(s)" :disabled="s.status === 4">生成草稿</el-button>
       </div>
     </div>
     <div class="empty-block" v-else>暂无建议</div>
@@ -144,7 +186,8 @@
         <div>时间：{{formatTime(draft.beginTime)}} - {{formatTime(draft.endTime)}}</div>
       </div>
       <div style="margin-top:14px">
-        <el-button type="primary" size="small" @click="confirmDraft" :disabled="draft.status !== 1">确认创建</el-button>
+        <el-button type="primary" size="small" :loading="confirmingDraftId === draft.draftId" @click="confirmDraft(draft)" :disabled="draft.status !== 1">确认创建</el-button>
+        <el-button size="small" @click="activeView = 'drafts'; loadDrafts()">查看列表</el-button>
         <el-button size="small" @click="draft = null">关闭</el-button>
       </div>
     </div>
@@ -154,7 +197,7 @@
 <script src="./js/vue.js"></script>
 <script src="./js/axios.min.js"></script>
 <script src="./js/element.js"></script>
-<script src="./js/common.js?v=20260428-2"></script>
+<script src="./js/common.js?v=20260430-1"></script>
 <script>
   const app = new Vue({
     el: "#merchant-app",
@@ -168,8 +211,17 @@
       sessions: [],
       messages: [],
       suggestions: [],
+      drafts: [],
+      actions: [],
       draft: null,
-      activeSessionId: ""
+      activeSessionId: "",
+      activeView: "overview",
+      pageMessage: "",
+      reportLoading: false,
+      draftLoading: false,
+      actionLoading: false,
+      creatingSuggestionId: "",
+      confirmingDraftId: ""
     },
     created() {
       this.ensureLogin();
@@ -197,6 +249,8 @@
             this.loadShop();
             this.loadSessions();
             this.loadSuggestions();
+            this.loadDrafts();
+            this.loadActions();
           })
           .catch(err => this.$message.error(err));
       },
@@ -220,6 +274,28 @@
           .then(({data}) => this.suggestions = data || [])
           .catch(err => this.$message.error(err));
       },
+      loadDrafts() {
+        if (!this.shopId) return;
+        this.draftLoading = true;
+        axios.get("/merchant-agent/shops/" + this.shopId + "/drafts")
+          .then(({data}) => this.drafts = data || [])
+          .catch(err => this.$message.error(err))
+          .finally(() => this.draftLoading = false);
+      },
+      loadActions() {
+        if (!this.shopId) return;
+        this.actionLoading = true;
+        axios.get("/merchant-agent/shops/" + this.shopId + "/actions")
+          .then(({data}) => this.actions = data || [])
+          .catch(err => this.$message.error(err))
+          .finally(() => this.actionLoading = false);
+      },
+      switchView(view) {
+        this.activeView = view;
+        this.pageMessage = "";
+        if (view === "drafts") this.loadDrafts();
+        if (view === "actions") this.loadActions();
+      },
       selectSession(session) {
         this.activeSessionId = session.sessionId;
         axios.get("/merchant-agent/sessions/" + session.sessionId + "/messages")
@@ -237,47 +313,82 @@
           .catch(err => this.$message.error(err));
       },
       generateReport() {
+        this.reportLoading = true;
+        this.pageMessage = "Agent 正在读取订单、优惠券和评价数据...";
         axios.post("/merchant-agent/shops/" + this.shopId + "/operation-report", {dateRange: this.dateRange})
           .then(({data}) => {
             this.report = data || {};
             this.$message.success("运营报告已生成");
+            this.pageMessage = "";
             this.activeSessionId = data.sessionId;
             this.loadSessions();
             this.loadSuggestions();
+            this.loadActions();
             return axios.get("/merchant-agent/sessions/" + data.sessionId + "/messages");
           })
           .then(({data}) => this.messages = data || [])
-          .catch(err => this.$message.error(err));
+          .catch(err => {
+            this.pageMessage = "";
+            this.$message.error(err);
+          })
+          .finally(() => this.reportLoading = false);
       },
       createDraft(suggestion) {
+        this.creatingSuggestionId = suggestion.suggestionId;
         const payload = {
-          draftType: "seckill",
-          title: this.shop.name + "Agent推荐秒杀券",
-          subTitle: "基于运营报告自动生成",
-          payValue: 5900,
-          actualValue: 10000,
-          stock: 80
+          recommendationType: suggestion.type,
+          recommendationTitle: suggestion.title,
+          recommendationReason: suggestion.summary,
+          recommendationAction: "按当前经营数据生成可确认的活动草稿"
         };
         axios.post("/merchant-agent/suggestions/" + suggestion.suggestionId + "/drafts", payload)
           .then(({data}) => {
             this.draft = data;
+            this.activeView = "drafts";
             this.$message.success("活动草稿已生成");
             this.loadSuggestions();
+            this.loadDrafts();
+            this.loadActions();
           })
-          .catch(err => this.$message.error(err));
+          .catch(err => this.$message.error(err))
+          .finally(() => this.creatingSuggestionId = "");
       },
-      confirmDraft() {
-        if (!this.draft) return;
+      openDraft(draft) {
+        this.draft = draft;
+        this.activeView = "drafts";
+      },
+      confirmDraft(draft) {
+        const target = draft || this.draft;
+        if (!target) return;
         this.$confirm("确认后将创建真实优惠券，用户可在店铺详情页看到该活动。", "确认创建活动", {
           confirmButtonText: "确认创建",
           cancelButtonText: "取消",
           type: "warning"
         }).then(() => {
-          return axios.post("/merchant-agent/drafts/" + this.draft.draftId + "/confirm");
+          this.confirmingDraftId = target.draftId;
+          return axios.post("/merchant-agent/drafts/" + target.draftId + "/confirm");
         }).then(({data}) => {
           this.draft = data;
           this.$message.success("活动创建成功");
           this.loadSuggestions();
+          this.loadDrafts();
+          this.loadActions();
+        }).catch(err => {
+          if (err !== "cancel") this.$message.error(err);
+        }).finally(() => this.confirmingDraftId = "");
+      },
+      rejectDraft(draft) {
+        this.$confirm("拒绝后该草稿不会创建真实优惠券。", "拒绝活动草稿", {
+          confirmButtonText: "拒绝",
+          cancelButtonText: "取消",
+          type: "warning"
+        }).then(() => {
+          return axios.post("/merchant-agent/drafts/" + draft.draftId + "/reject");
+        }).then(({data}) => {
+          this.draft = data;
+          this.$message.success("草稿已拒绝");
+          this.loadDrafts();
+          this.loadActions();
         }).catch(err => {
           if (err !== "cancel") this.$message.error(err);
         });
