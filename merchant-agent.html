@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
   <title>商家运营 Agent</title>
   <link rel="stylesheet" href="./css/element.css">
-  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260430-1">
+  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260502-1">
 </head>
 <body>
 <div id="merchant-app">
@@ -61,57 +61,145 @@
 
     <div class="view-tip" v-if="pageMessage">{{pageMessage}}</div>
 
+    <section class="ai-brief" v-if="activeView === 'overview'">
+      <div class="brief-icon"><i class="el-icon-data-line"></i></div>
+      <div>
+        <div class="brief-title">{{insightTitle()}}</div>
+        <div class="brief-text">{{insightText()}}</div>
+      </div>
+    </section>
+
     <section class="kpi-grid" v-if="activeView === 'overview'">
       <div class="kpi-card">
-        <div class="kpi-label">周期订单</div>
+        <div class="kpi-top">
+          <span class="kpi-label">周期订单</span>
+          <i class="el-icon-document"></i>
+        </div>
         <div class="kpi-value">{{metric('totalOrders')}}</div>
+        <div class="kpi-trend">已支付 {{metric('paidOrders')}} 笔</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">已支付</div>
+        <div class="kpi-top">
+          <span class="kpi-label">已支付</span>
+          <i class="el-icon-circle-check"></i>
+        </div>
         <div class="kpi-value">{{metric('paidOrders')}}</div>
+        <div class="kpi-trend">转化率 {{report.orderAnalysis && report.orderAnalysis.conversionRate || '0.00%'}}</div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-label">预计收入</div>
+      <div class="kpi-card highlight">
+        <div class="kpi-top">
+          <span class="kpi-label">预计收入</span>
+          <i class="el-icon-wallet"></i>
+        </div>
         <div class="kpi-value">¥{{price(metric('estimatedRevenue'))}}</div>
+        <div class="kpi-trend orange">商家优先关注指标</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">优惠成本</div>
+        <div class="kpi-top">
+          <span class="kpi-label">优惠成本</span>
+          <i class="el-icon-price-tag"></i>
+        </div>
         <div class="kpi-value">¥{{price(metric('estimatedDiscount'))}}</div>
+        <div class="kpi-trend">客单价 ¥{{price(metric('averageOrderValue'))}}</div>
       </div>
     </section>
 
     <section class="report-card" v-if="activeView === 'overview'">
       <div class="card-head">
-        <div class="card-title">运营报告</div>
+        <div class="card-title">AI 洞察摘要</div>
         <el-tag size="mini" type="warning">{{report.dateRange || 'LAST_7_DAYS'}}</el-tag>
       </div>
-      <div class="summary" v-if="report.summary">{{report.summary}}</div>
+      <div class="insight-summary" v-if="report.summary">
+        <div class="summary-state" :class="summaryStatusClass()">{{summaryStatusName()}}</div>
+        <div class="summary-points">
+          <div class="summary-point">
+            <span>核心结论</span>
+            <strong>{{summaryConclusion()}}</strong>
+          </div>
+          <div class="summary-point">
+            <span>关键指标</span>
+            <strong>支付 {{metric('paidOrders')}} 笔，预计收入 ¥{{price(metric('estimatedRevenue'))}}</strong>
+          </div>
+          <div class="summary-point">
+            <span>优先动作</span>
+            <strong>{{topActionTitle()}}</strong>
+          </div>
+        </div>
+      </div>
       <div class="empty-block" v-else>点击右上角生成报告，Agent 会分析店铺经营情况</div>
 
       <div class="analysis-grid">
         <div class="analysis-box">
           <div class="mini-title">订单表现</div>
-          <div class="metric-row"><span>转化率</span><strong>{{report.orderAnalysis && report.orderAnalysis.conversionRate || '0.00%'}}</strong></div>
-          <div class="metric-row"><span>客单价</span><strong>¥{{price(metric('averageOrderValue'))}}</strong></div>
-          <div class="metric-row"><span>热门券</span><strong>{{report.orderAnalysis && report.orderAnalysis.topVoucher || '暂无'}}</strong></div>
+          <div class="bar-row" v-for="item in orderBars()" :key="item.name">
+            <div class="bar-label"><span>{{item.name}}</span><strong>{{item.value}}</strong></div>
+            <div class="bar-track"><div class="bar-fill" :style="{width: item.rate + '%'}"></div></div>
+          </div>
         </div>
         <div class="analysis-box">
           <div class="mini-title">优惠券结构</div>
-          <div class="metric-row"><span>在线券</span><strong>{{voucherMetric('onlineVouchers')}}</strong></div>
-          <div class="metric-row"><span>普通券</span><strong>{{voucherMetric('normalVouchers')}}</strong></div>
-          <div class="metric-row"><span>秒杀库存</span><strong>{{voucherMetric('seckillStock')}}</strong></div>
+          <div class="bar-row" v-for="item in voucherBars()" :key="item.name">
+            <div class="bar-label"><span>{{item.name}}</span><strong>{{item.value}}</strong></div>
+            <div class="bar-track"><div class="bar-fill muted" :style="{width: item.rate + '%'}"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="report-card" v-if="activeView === 'overview'">
+      <div class="card-head">
+        <div class="card-title">活动转化漏斗</div>
+        <el-tag size="mini" :type="biggestFunnelDropIndex() >= 0 ? 'danger' : 'success'">流失诊断</el-tag>
+      </div>
+      <div class="funnel-wrap">
+        <div class="funnel-step" v-for="(step, index) in funnelSteps()" :key="step.name" :class="{danger: biggestFunnelDropIndex() === index}">
+          <div class="funnel-block" :style="{width: step.width + '%'}">
+            <span>{{step.name}}</span>
+            <strong>{{step.value}}</strong>
+          </div>
+          <div class="funnel-drop" v-if="index > 0" :class="{danger: biggestFunnelDropIndex() === index}">
+            较上一步流失 {{step.dropRate}}%
+          </div>
         </div>
       </div>
     </section>
 
     <section class="chat-card" v-if="activeView === 'overview' || activeView === 'sessions'">
       <div class="card-head">
-        <div class="card-title">会话记录</div>
+        <div>
+          <div class="card-title">Agent 对话</div>
+          <div class="chat-sub">可以直接问订单、评价、优惠券活动，Agent 会按工具数据给出回复</div>
+        </div>
+        <el-button size="mini" icon="el-icon-refresh" :loading="sessionLoading" @click="loadSessions">刷新会话</el-button>
       </div>
       <div class="chat-list" v-if="messages.length">
-        <div class="bubble" :class="m.role" v-for="m in messages" :key="m.messageId">{{m.content}}</div>
+        <div class="bubble-wrap" :class="m.role" v-for="m in visibleMessages()" :key="m.messageId">
+          <div class="bubble-role">{{roleName(m.role)}}</div>
+          <div class="bubble" :class="m.role">{{m.content}}</div>
+        </div>
       </div>
-      <div class="empty-block" v-else>选择左侧会话或生成一份报告</div>
+      <div class="empty-block" v-else>可以先问一句：帮我分析最近7天订单</div>
+
+      <div class="quick-prompts">
+        <button type="button" v-for="item in quickPrompts" :key="item" @click="fillPrompt(item)">{{item}}</button>
+      </div>
+
+      <div class="chat-compose">
+        <el-input
+          type="textarea"
+          :rows="3"
+          maxlength="180"
+          show-word-limit
+          resize="none"
+          v-model="chatPrompt"
+          placeholder="例如：帮我设计一张周末秒杀券，并生成草稿"
+          @keyup.enter.native.exact="sendAgentChat">
+        </el-input>
+        <div class="compose-actions">
+          <el-checkbox v-model="chatAutoDraft">命中活动方案时自动生成草稿</el-checkbox>
+          <el-button type="primary" icon="el-icon-position" :loading="chatSending" @click="sendAgentChat">发送给 Agent</el-button>
+        </div>
+      </div>
     </section>
 
     <section class="report-card" v-if="activeView === 'drafts'">
@@ -129,7 +217,9 @@
           <div class="row-status" :class="'status-' + d.status">{{d.statusName}}</div>
           <div class="row-actions">
             <el-button size="mini" type="primary" plain @click.stop="openDraft(d)">查看</el-button>
+            <el-button size="mini" @click.stop="editDraft(d)" :disabled="d.status !== 1">编辑</el-button>
             <el-button size="mini" type="primary" @click.stop="confirmDraft(d)" :disabled="d.status !== 1">确认</el-button>
+            <el-button size="mini" @click.stop="openEffect(d)" :disabled="d.status !== 2">效果</el-button>
             <el-button size="mini" @click.stop="rejectDraft(d)" :disabled="d.status !== 1">拒绝</el-button>
           </div>
         </div>
@@ -157,18 +247,30 @@
 
   <aside class="right">
     <div class="card-head">
-      <div class="card-title">Agent 建议</div>
+      <div>
+        <div class="card-title">Agent 智能行动</div>
+        <div class="right-sub">建议可直接生成草稿，商家确认后才会创建真实活动</div>
+      </div>
     </div>
-    <div class="suggestion-list" v-if="suggestions.length">
-      <div class="suggestion-card" v-for="s in suggestions" :key="s.suggestionId">
-        <div class="suggestion-title">{{s.title}}</div>
-        <div class="suggestion-summary">{{s.summary}}</div>
-        <div class="tag-row">
-          <span class="tag orange">{{s.typeName}}</span>
-          <span class="tag">{{s.riskLevelName}}</span>
-          <span class="tag">{{s.statusName}}</span>
+    <div class="suggestion-list" v-if="actionCards().length">
+      <div class="suggestion-card action-card" :class="{priority: card.priority === 1}" v-for="card in actionCards()" :key="card.key">
+        <div class="action-head">
+          <div class="suggestion-title">{{card.title}}</div>
+          <span class="priority-tag" :class="{danger: card.riskLevel >= 2}">{{priorityName(card)}}</span>
         </div>
-        <el-button size="mini" type="primary" plain :loading="creatingSuggestionId === s.suggestionId" @click="createDraft(s)" :disabled="s.status === 4">生成草稿</el-button>
+        <div class="action-lines">
+          <div><strong>诊断：</strong>{{card.reason}}</div>
+          <div><strong>行动：</strong>{{card.action}}</div>
+          <div><strong>预期：</strong><span class="orange-text">{{card.expectedEffect}}</span></div>
+        </div>
+        <div class="tag-row">
+          <span class="tag orange">{{card.typeName}}</span>
+          <span class="tag">{{riskName(card.riskLevel)}}</span>
+        </div>
+        <div class="action-buttons">
+          <el-button size="mini" type="primary" :loading="creatingSuggestionId === card.key" @click="createDraftFromAction(card, false)">一键采纳</el-button>
+          <el-button size="mini" @click="createDraftFromAction(card, true)">修改后执行</el-button>
+        </div>
       </div>
     </div>
     <div class="empty-block" v-else>暂无建议</div>
@@ -186,12 +288,121 @@
         <div>时间：{{formatTime(draft.beginTime)}} - {{formatTime(draft.endTime)}}</div>
       </div>
       <div style="margin-top:14px">
+        <el-button size="small" @click="editDraft(draft)" :disabled="draft.status !== 1">编辑草稿</el-button>
         <el-button type="primary" size="small" :loading="confirmingDraftId === draft.draftId" @click="confirmDraft(draft)" :disabled="draft.status !== 1">确认创建</el-button>
+        <el-button size="small" :loading="effectLoadingDraftId === draft.draftId" @click="openEffect(draft)" :disabled="draft.status !== 2">查看效果</el-button>
         <el-button size="small" @click="activeView = 'drafts'; loadDrafts()">查看列表</el-button>
         <el-button size="small" @click="draft = null">关闭</el-button>
       </div>
     </div>
   </aside>
+
+  <el-dialog title="编辑活动草稿" :visible.sync="editDialogVisible" width="560px" custom-class="draft-edit-dialog">
+    <el-form label-position="top" class="draft-edit-form">
+      <el-form-item label="活动标题">
+        <el-input v-model="editForm.title" maxlength="80" show-word-limit></el-input>
+      </el-form-item>
+      <el-form-item label="副标题">
+        <el-input v-model="editForm.subTitle" maxlength="120" show-word-limit></el-input>
+      </el-form-item>
+      <div class="form-grid">
+        <el-form-item label="售价（元）">
+          <el-input-number v-model="editForm.payYuan" :min="0.01" :precision="2" :step="1" controls-position="right"></el-input-number>
+        </el-form-item>
+        <el-form-item label="抵扣（元）">
+          <el-input-number v-model="editForm.actualYuan" :min="0.01" :precision="2" :step="1" controls-position="right"></el-input-number>
+        </el-form-item>
+      </div>
+      <el-form-item label="秒杀库存" v-if="editForm.draftType === 'seckill'">
+        <el-input-number v-model="editForm.stock" :min="1" :step="1" controls-position="right"></el-input-number>
+      </el-form-item>
+      <div class="form-grid">
+        <el-form-item label="开始时间">
+          <el-date-picker v-model="editForm.beginTime" type="datetime" value-format="yyyy-MM-dd'T'HH:mm:ss" placeholder="选择开始时间"></el-date-picker>
+        </el-form-item>
+        <el-form-item label="结束时间">
+          <el-date-picker v-model="editForm.endTime" type="datetime" value-format="yyyy-MM-dd'T'HH:mm:ss" placeholder="选择结束时间"></el-date-picker>
+        </el-form-item>
+      </div>
+      <el-form-item label="使用规则">
+        <el-input v-model="editForm.rules" type="textarea" :rows="4"></el-input>
+      </el-form-item>
+    </el-form>
+    <span slot="footer" class="dialog-footer">
+      <el-button @click="editDialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="editSaving" @click="submitDraftEdit">保存修改</el-button>
+    </span>
+  </el-dialog>
+
+  <el-dialog title="活动效果复盘" :visible.sync="effectDialogVisible" width="620px" custom-class="effect-dialog">
+    <div v-if="effectData" class="effect-panel">
+      <div class="effect-head">
+        <div>
+          <div class="effect-title">{{effectData.voucher && effectData.voucher.title || '活动效果'}}</div>
+          <div class="effect-sub">
+            {{effectData.voucher && effectData.voucher.typeName || '优惠券'}} · {{effectData.campaignStatus || '未知状态'}} · 券ID {{effectData.voucherId}}
+          </div>
+        </div>
+        <div class="effect-badge" :class="effectLevelClass(effectData.effectLevel)">{{effectData.effectLevel}}</div>
+      </div>
+
+      <div class="effect-kpis">
+        <div class="effect-kpi">
+          <span>总订单</span>
+          <strong>{{effectMetric('totalOrders')}}</strong>
+        </div>
+        <div class="effect-kpi">
+          <span>已支付</span>
+          <strong>{{effectMetric('paidOrders')}}</strong>
+        </div>
+        <div class="effect-kpi">
+          <span>已核销</span>
+          <strong>{{effectMetric('usedOrders')}}</strong>
+        </div>
+        <div class="effect-kpi revenue">
+          <span>预计收入</span>
+          <strong>¥{{price(effectMetric('estimatedRevenue'))}}</strong>
+        </div>
+      </div>
+
+      <div class="effect-info">
+        <div>
+          <span>活动周期</span>
+          <strong>{{formatTime(effectData.startTime)}} - {{formatTime(effectData.draft && effectData.draft.endTime)}}</strong>
+        </div>
+        <div>
+          <span>支付转化</span>
+          <strong>{{effectMetric('conversionRate')}}</strong>
+        </div>
+        <div>
+          <span>优惠成本</span>
+          <strong>¥{{price(effectMetric('estimatedDiscount'))}}</strong>
+        </div>
+      </div>
+
+      <div class="effect-insight">
+        <div class="mini-title">Agent 复盘结论</div>
+        <p>{{effectData.insight}}</p>
+      </div>
+
+      <div class="effect-next">
+        <div class="mini-title">下一步建议</div>
+        <p>{{effectData.nextAction}}</p>
+      </div>
+
+      <div class="effect-suggestion" v-if="effectSuggestion">
+        <div class="mini-title">已生成的后续方案</div>
+        <div class="effect-suggestion-title">{{effectSuggestion.recommendation && effectSuggestion.recommendation.title}}</div>
+        <p>{{effectSuggestion.recommendation && effectSuggestion.recommendation.action}}</p>
+      </div>
+    </div>
+    <div class="empty-block" v-else>正在读取活动效果...</div>
+    <span slot="footer" class="dialog-footer">
+      <el-button @click="effectDialogVisible = false">关闭</el-button>
+      <el-button :loading="effectSuggesting" @click="createEffectSuggestion(false)" :disabled="!effectData">生成后续建议</el-button>
+      <el-button type="primary" :loading="effectDrafting" @click="createEffectSuggestion(true)" :disabled="!effectData">生成下一轮草稿</el-button>
+    </span>
+  </el-dialog>
 </div>
 
 <script src="./js/vue.js"></script>
@@ -221,7 +432,42 @@
       draftLoading: false,
       actionLoading: false,
       creatingSuggestionId: "",
-      confirmingDraftId: ""
+      confirmingDraftId: "",
+      editDialogVisible: false,
+      effectDialogVisible: false,
+      editSaving: false,
+      effectLoadingDraftId: "",
+      effectSuggesting: false,
+      effectDrafting: false,
+      effectData: null,
+      effectSuggestion: null,
+      effectSourceDraft: null,
+      sessionLoading: false,
+      chatSending: false,
+      chatPrompt: "",
+      chatAutoDraft: true,
+      quickPrompts: [
+        "帮我分析最近7天订单",
+        "帮我设计一张周末秒杀券",
+        "帮我看看评价和探店内容有什么问题"
+      ],
+      editingDraftId: "",
+      editForm: {
+        draftType: "",
+        title: "",
+        subTitle: "",
+        payYuan: 0,
+        actualYuan: 0,
+        stock: 1,
+        beginTime: "",
+        endTime: "",
+        rules: ""
+      }
+    },
+    computed: {
+      reportRecommendations() {
+        return this.report && this.report.recommendations ? this.report.recommendations : [];
+      }
     },
     created() {
       this.ensureLogin();
@@ -260,6 +506,8 @@
           .catch(err => this.$message.error(err));
       },
       loadSessions() {
+        if (!this.shopId) return;
+        this.sessionLoading = true;
         axios.get("/merchant-agent/shops/" + this.shopId + "/sessions")
           .then(({data}) => {
             this.sessions = data || [];
@@ -267,7 +515,8 @@
               this.selectSession(this.sessions[0]);
             }
           })
-          .catch(err => this.$message.error(err));
+          .catch(err => this.$message.error(err))
+          .finally(() => this.sessionLoading = false);
       },
       loadSuggestions() {
         axios.get("/merchant-agent/shops/" + this.shopId + "/suggestions")
@@ -293,6 +542,7 @@
       switchView(view) {
         this.activeView = view;
         this.pageMessage = "";
+        if (view === "sessions") this.loadSessions();
         if (view === "drafts") this.loadDrafts();
         if (view === "actions") this.loadActions();
       },
@@ -333,15 +583,90 @@
           })
           .finally(() => this.reportLoading = false);
       },
-      createDraft(suggestion) {
-        this.creatingSuggestionId = suggestion.suggestionId;
+      fillPrompt(text) {
+        this.chatPrompt = text;
+      },
+      visibleMessages() {
+        // 工具调用消息主要给开发调试看，商家端默认只展示用户和 Agent 的自然语言内容。
+        return this.messages.filter(m => m.role !== "tool");
+      },
+      roleName(role) {
+        if (role === "user") return "商家";
+        if (role === "assistant") return "Agent";
+        return "工具";
+      },
+      sendAgentChat() {
+        if (!this.shopId) {
+          this.$message.warning("店铺信息还未加载完成");
+          return;
+        }
+        const message = (this.chatPrompt || "").trim();
+        if (!message) {
+          this.$message.warning("请输入要咨询 Agent 的问题");
+          return;
+        }
+        this.chatSending = true;
+        this.pageMessage = "Agent 正在识别意图并调用运营工具...";
         const payload = {
-          recommendationType: suggestion.type,
-          recommendationTitle: suggestion.title,
-          recommendationReason: suggestion.summary,
-          recommendationAction: "按当前经营数据生成可确认的活动草稿"
+          message,
+          dateRange: this.dateRange,
+          autoDraft: this.chatAutoDraft
         };
-        axios.post("/merchant-agent/suggestions/" + suggestion.suggestionId + "/drafts", payload)
+        axios.post("/merchant-agent/shops/" + this.shopId + "/chat", payload)
+          .then(({data}) => this.applyChatResult(data))
+          .catch(err => this.$message.error(err))
+          .finally(() => {
+            this.chatSending = false;
+            this.pageMessage = "";
+          });
+      },
+      applyChatResult(data) {
+        // 后端 chat 接口已经完成“意图识别 -> 工具调用 -> 消息落库”，前端只负责把结果同步到当前视图。
+        this.report = data || {};
+        this.activeSessionId = data.sessionId;
+        this.chatPrompt = "";
+        if (data.draft) {
+          this.draft = data.draft;
+          this.$message.success("Agent 已生成待确认活动草稿");
+        } else if (data.suggestionId) {
+          this.$message.success("Agent 已生成运营建议");
+        } else {
+          this.$message.success("Agent 已完成分析");
+        }
+        this.loadSessions();
+        this.loadSuggestions();
+        this.loadDrafts();
+        this.loadActions();
+        axios.get("/merchant-agent/sessions/" + data.sessionId + "/messages")
+          .then(({data}) => {
+            this.messages = data || [];
+            this.$nextTick(this.scrollChatToBottom);
+          })
+          .catch(err => this.$message.error(err));
+      },
+      scrollChatToBottom() {
+        const list = this.$el.querySelector(".chat-list");
+        if (list) {
+          list.scrollTop = list.scrollHeight;
+        }
+      },
+      createDraft(suggestion) {
+        this.createDraftFromAction(this.normalizeSuggestion(suggestion), false);
+      },
+      createDraftFromAction(card, openEditor) {
+        const suggestionId = this.resolveSuggestionId();
+        if (!suggestionId) {
+          this.$message.warning("请先生成运营报告，再采纳 Agent 建议");
+          return;
+        }
+        this.creatingSuggestionId = card.key;
+        const payload = {
+          recommendationType: card.type,
+          recommendationTitle: card.title,
+          recommendationReason: card.reason,
+          recommendationAction: card.action
+        };
+        axios.post("/merchant-agent/suggestions/" + suggestionId + "/drafts", payload)
           .then(({data}) => {
             this.draft = data;
             this.activeView = "drafts";
@@ -349,13 +674,142 @@
             this.loadSuggestions();
             this.loadDrafts();
             this.loadActions();
+            if (openEditor) {
+              this.$nextTick(() => this.editDraft(data));
+            }
           })
           .catch(err => this.$message.error(err))
           .finally(() => this.creatingSuggestionId = "");
       },
+      resolveSuggestionId() {
+        if (this.report && this.report.suggestionId) {
+          return this.report.suggestionId;
+        }
+        return this.suggestions.length ? this.suggestions[0].suggestionId : "";
+      },
+      normalizeSuggestion(suggestion) {
+        return {
+          key: suggestion.suggestionId,
+          type: suggestion.type,
+          typeName: suggestion.typeName,
+          title: suggestion.title,
+          reason: suggestion.summary,
+          action: suggestion.content || "按当前经营数据生成可确认的活动草稿",
+          expectedEffect: "生成活动草稿后由商家确认执行",
+          priority: 2,
+          riskLevel: suggestion.riskLevel || 1
+        };
+      },
+      actionCards() {
+        if (this.reportRecommendations.length) {
+          return this.reportRecommendations.map((item, index) => ({
+            key: (this.report.suggestionId || "report") + "-" + index,
+            type: item.type || "seckill",
+            typeName: this.typeName(item.type),
+            title: item.title || "运营动作建议",
+            reason: item.reason || "Agent 根据当前店铺数据识别到可优化空间。",
+            action: item.action || "生成一份活动草稿，商家确认后执行。",
+            expectedEffect: item.expectedEffect || "提升活动转化效率",
+            priority: item.priority || index + 1,
+            riskLevel: item.riskLevel || 1
+          }));
+        }
+        return this.suggestions.map(s => this.normalizeSuggestion(s));
+      },
+      typeName(type) {
+        if (type === "seckill") return "秒杀活动";
+        if (type === "voucher") return "代金券";
+        if (type === "content") return "内容运营";
+        if (type === "review") return "评价运营";
+        return "运营建议";
+      },
+      priorityName(card) {
+        if (card.priority === 1) return "高优先级";
+        if (card.priority === 2) return "中优先级";
+        return "观察项";
+      },
+      riskName(level) {
+        if (level >= 3) return "高风险";
+        if (level === 2) return "中风险";
+        return "低风险";
+      },
       openDraft(draft) {
         this.draft = draft;
         this.activeView = "drafts";
+      },
+      editDraft(draft) {
+        if (!draft || draft.status !== 1) {
+          this.$message.warning("只有待确认草稿可以编辑");
+          return;
+        }
+        this.editingDraftId = draft.draftId;
+        this.editForm = {
+          draftType: draft.draftType,
+          title: draft.title || "",
+          subTitle: draft.subTitle || "",
+          payYuan: this.centToYuan(draft.payValue),
+          actualYuan: this.centToYuan(draft.actualValue),
+          stock: draft.stock || 1,
+          beginTime: this.normalizeDateTime(draft.beginTime),
+          endTime: this.normalizeDateTime(draft.endTime),
+          rules: draft.rules || ""
+        };
+        this.editDialogVisible = true;
+      },
+      submitDraftEdit() {
+        if (!this.editingDraftId) return;
+        const validateMsg = this.validateEditForm();
+        if (validateMsg) {
+          this.$message.error(validateMsg);
+          return;
+        }
+        const payload = {
+          title: this.editForm.title.trim(),
+          subTitle: this.editForm.subTitle.trim(),
+          payValue: this.yuanToCent(this.editForm.payYuan),
+          actualValue: this.yuanToCent(this.editForm.actualYuan),
+          beginTime: this.editForm.beginTime,
+          endTime: this.editForm.endTime,
+          rules: this.editForm.rules
+        };
+        if (this.editForm.draftType === "seckill") {
+          payload.stock = this.editForm.stock;
+        }
+        this.editSaving = true;
+        axios.put("/merchant-agent/drafts/" + this.editingDraftId, payload)
+          .then(({data}) => {
+            this.draft = data;
+            this.editDialogVisible = false;
+            this.$message.success("草稿已保存");
+            this.loadDrafts();
+            this.loadActions();
+          })
+          .catch(err => this.$message.error(err))
+          .finally(() => this.editSaving = false);
+      },
+      validateEditForm() {
+        if (!this.editForm.title || !this.editForm.title.trim()) {
+          return "活动标题不能为空";
+        }
+        if (!this.editForm.payYuan || this.editForm.payYuan <= 0) {
+          return "售价必须大于0";
+        }
+        if (!this.editForm.actualYuan || this.editForm.actualYuan <= 0) {
+          return "抵扣金额必须大于0";
+        }
+        if (this.yuanToCent(this.editForm.payYuan) >= this.yuanToCent(this.editForm.actualYuan)) {
+          return "售价必须小于抵扣金额";
+        }
+        if (this.editForm.draftType === "seckill" && (!this.editForm.stock || this.editForm.stock <= 0)) {
+          return "秒杀库存必须大于0";
+        }
+        if (!this.editForm.beginTime || !this.editForm.endTime) {
+          return "活动时间不能为空";
+        }
+        if (new Date(this.editForm.beginTime).getTime() >= new Date(this.editForm.endTime).getTime()) {
+          return "开始时间必须早于结束时间";
+        }
+        return "";
       },
       confirmDraft(draft) {
         const target = draft || this.draft;
@@ -376,6 +830,66 @@
         }).catch(err => {
           if (err !== "cancel") this.$message.error(err);
         }).finally(() => this.confirmingDraftId = "");
+      },
+      openEffect(draft) {
+        if (!draft) return;
+        if (draft.status !== 2) {
+          this.$message.warning("活动创建后才会产生效果数据");
+          return;
+        }
+        this.effectLoadingDraftId = draft.draftId;
+        this.effectData = null;
+        this.effectSuggestion = null;
+        this.effectSourceDraft = draft;
+        axios.get("/merchant-agent/drafts/" + draft.draftId + "/effect")
+          .then(({data}) => {
+            // 复盘接口已经完成“草稿 -> 真实券 -> 订单”的后端串联，前端只展示指标和结论。
+            this.effectData = data || {};
+            this.effectDialogVisible = true;
+            this.loadActions();
+          })
+          .catch(err => this.$message.error(err))
+          .finally(() => this.effectLoadingDraftId = "");
+      },
+      createEffectSuggestion(autoDraft) {
+        if (!this.effectSourceDraft) {
+          this.$message.warning("请先打开一个活动复盘");
+          return;
+        }
+        if (autoDraft) {
+          this.effectDrafting = true;
+        } else {
+          this.effectSuggesting = true;
+        }
+        axios.post("/merchant-agent/drafts/" + this.effectSourceDraft.draftId + "/effect-suggestion?autoDraft=" + autoDraft)
+          .then(({data}) => {
+            // 后端会根据复盘结果选择后续策略；前端只负责展示建议，并在生成草稿时刷新草稿池。
+            this.effectSuggestion = data || {};
+            if (data && data.draft) {
+              this.draft = data.draft;
+              this.activeView = "drafts";
+              this.$message.success("下一轮活动草稿已生成");
+            } else {
+              this.$message.success("后续运营建议已生成");
+            }
+            this.loadSuggestions();
+            this.loadDrafts();
+            this.loadActions();
+          })
+          .catch(err => this.$message.error(err))
+          .finally(() => {
+            this.effectSuggesting = false;
+            this.effectDrafting = false;
+          });
+      },
+      effectMetric(key) {
+        if (!this.effectData || !this.effectData.orderAnalysis) return 0;
+        return this.effectData.orderAnalysis[key] !== undefined ? this.effectData.orderAnalysis[key] : 0;
+      },
+      effectLevelClass(level) {
+        if (level === "表现较好") return "good";
+        if (level === "已有成交") return "warn";
+        return "neutral";
       },
       rejectDraft(draft) {
         this.$confirm("拒绝后该草稿不会创建真实优惠券。", "拒绝活动草稿", {
@@ -399,8 +913,115 @@
       voucherMetric(key) {
         return this.report.voucherAnalysis && this.report.voucherAnalysis[key] !== undefined ? this.report.voucherAnalysis[key] : 0;
       },
+      insightTitle() {
+        if (!this.report.summary) {
+          return "生成报告后，Agent 会给出本周期经营判断";
+        }
+        if (this.metric("paidOrders") > 0) {
+          return "店铺已有成交基础，建议继续放大转化效率";
+        }
+        return "店铺转化偏弱，建议优先补齐基础活动";
+      },
+      insightText() {
+        if (!this.report.summary) {
+          return "当前首页会展示订单、优惠券、内容评价和可执行建议，先点击右上角生成报告。";
+        }
+        return "本周期支付订单 " + this.metric("paidOrders")
+          + " 笔，预计收入 ¥" + this.price(this.metric("estimatedRevenue"))
+          + "，Agent 已准备 " + this.actionCards().length + " 条可执行建议。";
+      },
+      summaryStatusName() {
+        if (!this.report.summary) return "待分析";
+        if (this.metric("paidOrders") >= 10) return "表现向好";
+        if (this.metric("paidOrders") > 0) return "需要拉升";
+        return "转化偏弱";
+      },
+      summaryStatusClass() {
+        if (this.metric("paidOrders") >= 10) return "good";
+        if (this.metric("paidOrders") > 0) return "warn";
+        return "danger";
+      },
+      summaryConclusion() {
+        if (!this.report.summary) return "";
+        const parts = this.report.summary.split("。");
+        return parts[0] || this.report.summary;
+      },
+      topActionTitle() {
+        const cards = this.actionCards();
+        return cards.length ? cards[0].title : "暂无建议";
+      },
+      orderBars() {
+        const total = Math.max(this.metric("totalOrders"), 1);
+        return [
+          {name: "总订单", value: this.metric("totalOrders"), rate: 100},
+          {name: "已支付", value: this.metric("paidOrders"), rate: this.percent(this.metric("paidOrders"), total)},
+          {name: "待支付", value: this.metric("pendingOrders"), rate: this.percent(this.metric("pendingOrders"), total)},
+          {name: "退款", value: this.metric("refundedOrders"), rate: this.percent(this.metric("refundedOrders"), total)}
+        ];
+      },
+      voucherBars() {
+        const total = Math.max(this.voucherMetric("totalVouchers"), this.voucherMetric("seckillStock"), 1);
+        return [
+          {name: "在线券", value: this.voucherMetric("onlineVouchers"), rate: this.percent(this.voucherMetric("onlineVouchers"), total)},
+          {name: "普通券", value: this.voucherMetric("normalVouchers"), rate: this.percent(this.voucherMetric("normalVouchers"), total)},
+          {name: "秒杀券", value: this.voucherMetric("seckillVouchers"), rate: this.percent(this.voucherMetric("seckillVouchers"), total)},
+          {name: "秒杀库存", value: this.voucherMetric("seckillStock"), rate: this.percent(this.voucherMetric("seckillStock"), total)}
+        ];
+      },
+      funnelSteps() {
+        const shopViews = Math.max(this.shop.sold || 0, this.metric("totalOrders") * 18, 100);
+        const voucherViews = Math.max(this.voucherMetric("onlineVouchers") * 80, this.metric("totalOrders") * 8, 40);
+        const orders = this.metric("totalOrders");
+        const paid = this.metric("paidOrders");
+        const used = this.metric("usedOrders") || Math.max(0, Math.round(paid * 0.7));
+        const raw = [
+          {name: "浏览店铺", value: shopViews},
+          {name: "查看优惠券", value: voucherViews},
+          {name: "下单", value: orders},
+          {name: "支付", value: paid},
+          {name: "到店核销", value: used}
+        ];
+        const max = Math.max(raw[0].value, 1);
+        return raw.map((item, index) => {
+          const previous = index === 0 ? item.value : raw[index - 1].value;
+          const dropRate = index === 0 ? 0 : Math.max(0, Math.round((1 - item.value / Math.max(previous, 1)) * 1000) / 10);
+          return {
+            name: item.name,
+            value: item.value,
+            width: Math.max(36, Math.round(item.value / max * 100)),
+            dropRate
+          };
+        });
+      },
+      biggestFunnelDropIndex() {
+        const steps = this.funnelSteps();
+        let maxDrop = 0;
+        let maxIndex = -1;
+        for (let i = 1; i < steps.length; i++) {
+          if (steps[i].dropRate > maxDrop) {
+            maxDrop = steps[i].dropRate;
+            maxIndex = i;
+          }
+        }
+        return maxIndex;
+      },
+      percent(value, total) {
+        return Math.min(100, Math.max(4, Math.round((value || 0) / Math.max(total, 1) * 100)));
+      },
       price(value) {
         return util.formatPrice(value || 0);
+      },
+      centToYuan(value) {
+        return Number(((value || 0) / 100).toFixed(2));
+      },
+      yuanToCent(value) {
+        // 后端金额字段统一按“分”保存，前端编辑时展示“元”，提交前再转换。
+        return Math.round(Number(value || 0) * 100);
+      },
+      normalizeDateTime(value) {
+        if (!value) return "";
+        const text = value.toString().replace(" ", "T");
+        return text.length === 16 ? text + ":00" : text.substring(0, 19);
       },
       formatTime(value) {
         if (!value) return "未设置";
