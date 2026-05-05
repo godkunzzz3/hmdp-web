@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
   <title>商家运营 Agent</title>
   <link rel="stylesheet" href="./css/element.css">
-  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260502-1">
+  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260505-1">
 </head>
 <body>
 <div id="merchant-app">
@@ -20,6 +20,7 @@
 
     <div class="nav-item" :class="{active: activeView === 'overview'}" @click="switchView('overview')"><i class="el-icon-data-analysis"></i>运营总览</div>
     <div class="nav-item" :class="{active: activeView === 'sessions'}" @click="switchView('sessions')"><i class="el-icon-chat-dot-round"></i>Agent 会话</div>
+    <div class="nav-item" :class="{active: activeView === 'agentActions'}" @click="switchView('agentActions')"><i class="el-icon-magic-stick"></i>智能行动</div>
     <div class="nav-item" :class="{active: activeView === 'drafts'}" @click="switchView('drafts')"><i class="el-icon-tickets"></i>优惠券草稿</div>
     <div class="nav-item" :class="{active: activeView === 'actions'}" @click="switchView('actions')"><i class="el-icon-document-checked"></i>操作审计</div>
 
@@ -29,6 +30,21 @@
         <div class="shop-name">{{shop.name || '慢拍酒馆'}}</div>
         <div class="shop-meta">{{shop.area || '杭州'}} · {{shop.address || '大关192号 酒吧体验店'}}</div>
       </div>
+    </div>
+
+    <div class="side-section">
+      <div class="section-title">Agent 智能行动</div>
+      <div class="side-action-list" v-if="actionCards().length">
+        <div class="side-action-card" v-for="card in actionCards().slice(0, 2)" :key="card.key">
+          <div class="side-action-head">
+            <div class="side-action-title">{{card.title}}</div>
+            <span class="side-priority">{{priorityName(card)}}</span>
+          </div>
+          <div class="side-action-desc">{{card.action}}</div>
+          <button type="button" class="side-action-btn" @click="createDraftFromAction(card, false)">一键采纳</button>
+        </div>
+      </div>
+      <div class="empty-block side-empty" v-else>生成报告后出现可采纳行动</div>
     </div>
 
     <div class="side-section">
@@ -47,7 +63,7 @@
     <div class="topbar">
       <div>
         <div class="page-title">商家运营 Agent</div>
-        <div class="page-sub">基于订单、优惠券、评价数据生成运营建议</div>
+        <div class="page-sub">像 GPT 一样对话，但每一步都能看到工具调用和业务依据</div>
       </div>
       <div class="actions">
         <el-select v-model="dateRange" size="small" style="width: 136px">
@@ -175,7 +191,7 @@
       <div class="chat-list" v-if="messages.length">
         <div class="bubble-wrap" :class="m.role" v-for="m in visibleMessages()" :key="m.messageId">
           <div class="bubble-role">{{roleName(m.role)}}</div>
-          <div class="bubble" :class="m.role">{{m.content}}</div>
+          <div class="bubble" :class="m.role" v-html="renderMessage(m.content)"></div>
         </div>
       </div>
       <div class="empty-block" v-else>可以先问一句：帮我分析最近7天订单</div>
@@ -200,6 +216,38 @@
           <el-button type="primary" icon="el-icon-position" :loading="chatSending" @click="sendAgentChat">发送给 Agent</el-button>
         </div>
       </div>
+    </section>
+
+    <section class="report-card" v-if="activeView === 'agentActions'">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Agent 智能行动</div>
+          <div class="chat-sub">建议先生成草稿，商家确认后才会创建真实优惠券或秒杀活动</div>
+        </div>
+        <el-button size="mini" icon="el-icon-refresh" @click="loadSuggestions">刷新建议</el-button>
+      </div>
+      <div class="agent-action-grid" v-if="actionCards().length">
+        <div class="suggestion-card action-card" :class="{priority: card.priority === 1}" v-for="card in actionCards()" :key="card.key">
+          <div class="action-head">
+            <div class="suggestion-title">{{card.title}}</div>
+            <span class="priority-tag" :class="{danger: card.riskLevel >= 2}">{{priorityName(card)}}</span>
+          </div>
+          <div class="action-lines">
+            <div><strong>诊断：</strong>{{card.reason}}</div>
+            <div><strong>行动：</strong>{{card.action}}</div>
+            <div><strong>预期：</strong><span class="orange-text">{{card.expectedEffect}}</span></div>
+          </div>
+          <div class="tag-row">
+            <span class="tag orange">{{card.typeName}}</span>
+            <span class="tag">{{riskName(card.riskLevel)}}</span>
+          </div>
+          <div class="action-buttons">
+            <el-button size="mini" type="primary" :loading="creatingSuggestionId === card.key" @click="createDraftFromAction(card, false)">一键采纳</el-button>
+            <el-button size="mini" @click="createDraftFromAction(card, true)">修改后执行</el-button>
+          </div>
+        </div>
+      </div>
+      <div class="empty-block" v-else>暂无建议。可以先生成运营报告，或在 Agent 会话里提出活动方案问题。</div>
     </section>
 
     <section class="report-card" v-if="activeView === 'drafts'">
@@ -246,34 +294,50 @@
   </main>
 
   <aside class="right">
-    <div class="card-head">
-      <div>
-        <div class="card-title">Agent 智能行动</div>
-        <div class="right-sub">建议可直接生成草稿，商家确认后才会创建真实活动</div>
+    <div class="explain-title">Agent 可解释面板</div>
+    <div class="right-sub">这里展示业务可解释链路：模型来源、工具调用、数据摘要和执行步骤。</div>
+
+    <div class="explain-card">
+      <div class="explain-head">
+        <span>模型来源</span>
+        <span class="model-badge" :class="{fallback: modelProvider() === 'rule_fallback'}">{{modelProvider() === 'rule_fallback' ? '规则兜底' : '在线模型'}}</span>
       </div>
+      <div class="kv-row"><span>Provider</span><strong>{{modelProvider()}}</strong></div>
+      <div class="kv-row"><span>Model</span><strong>{{modelName()}}</strong></div>
+      <div class="kv-row"><span>Prompt</span><strong>{{promptVersion()}}</strong></div>
+      <div class="kv-row"><span>耗时</span><strong>{{modelCostMillis()}}</strong></div>
+      <div class="kv-row"><span>Confidence</span><strong>{{modelConfidence()}}</strong></div>
+      <div class="model-reason" v-if="modelReasoning()">{{modelReasoning()}}</div>
     </div>
-    <div class="suggestion-list" v-if="actionCards().length">
-      <div class="suggestion-card action-card" :class="{priority: card.priority === 1}" v-for="card in actionCards()" :key="card.key">
-        <div class="action-head">
-          <div class="suggestion-title">{{card.title}}</div>
-          <span class="priority-tag" :class="{danger: card.riskLevel >= 2}">{{priorityName(card)}}</span>
-        </div>
-        <div class="action-lines">
-          <div><strong>诊断：</strong>{{card.reason}}</div>
-          <div><strong>行动：</strong>{{card.action}}</div>
-          <div><strong>预期：</strong><span class="orange-text">{{card.expectedEffect}}</span></div>
-        </div>
-        <div class="tag-row">
-          <span class="tag orange">{{card.typeName}}</span>
-          <span class="tag">{{riskName(card.riskLevel)}}</span>
-        </div>
-        <div class="action-buttons">
-          <el-button size="mini" type="primary" :loading="creatingSuggestionId === card.key" @click="createDraftFromAction(card, false)">一键采纳</el-button>
-          <el-button size="mini" @click="createDraftFromAction(card, true)">修改后执行</el-button>
+
+    <div class="explain-card">
+      <div class="explain-head">
+        <span>工具调用详情</span>
+        <span class="tool-cost">{{toolCostMillis()}}</span>
+      </div>
+      <div class="tool-box" v-if="currentToolName()">
+        工具：<code>{{currentToolName()}}</code><br>
+        店铺：<code>{{shopId}}</code><br>
+        周期：<code>{{dateRange}}</code><br>
+        状态：<code>{{toolSuccessText()}}</code>
+        <div class="tool-summary" v-if="toolResultSummary()">{{toolResultSummary()}}</div>
+      </div>
+      <div class="empty-block" v-else>发送一次 Agent 会话后，这里会显示工具调用结果。</div>
+    </div>
+
+    <div class="explain-card">
+      <div class="explain-head">Agent 执行链路</div>
+      <div class="flow-list" v-if="flowSteps().length">
+        <div class="flow-step" v-for="step in flowSteps()" :key="step.stepCode">
+          <div class="flow-mark" :class="{skip: step.status === 'skipped', fail: step.status === 'failed'}">{{step.status === 'skipped' ? '-' : (step.status === 'failed' ? '!' : '✓')}}</div>
+          <div>
+            <div class="flow-name">{{step.stepName}}</div>
+            <div class="flow-detail">{{step.detail}}</div>
+          </div>
         </div>
       </div>
+      <div class="empty-block" v-else>暂无执行链路。</div>
     </div>
-    <div class="empty-block" v-else>暂无建议</div>
 
     <div class="draft-card" v-if="draft">
       <div class="card-title">活动草稿</div>
@@ -419,6 +483,7 @@
       dateRange: "LAST_7_DAYS",
       shop: {},
       report: {},
+      lastAgentResult: {},
       sessions: [],
       messages: [],
       suggestions: [],
@@ -543,6 +608,7 @@
         this.activeView = view;
         this.pageMessage = "";
         if (view === "sessions") this.loadSessions();
+        if (view === "agentActions") this.loadSuggestions();
         if (view === "drafts") this.loadDrafts();
         if (view === "actions") this.loadActions();
       },
@@ -568,6 +634,7 @@
         axios.post("/merchant-agent/shops/" + this.shopId + "/operation-report", {dateRange: this.dateRange})
           .then(({data}) => {
             this.report = data || {};
+            this.lastAgentResult = data || {};
             this.$message.success("运营报告已生成");
             this.pageMessage = "";
             this.activeSessionId = data.sessionId;
@@ -594,6 +661,23 @@
         if (role === "user") return "商家";
         if (role === "assistant") return "Agent";
         return "工具";
+      },
+      renderMessage(content) {
+        const text = this.escapeHtml(content || "");
+        return text
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+          .replace(/^### (.*)$/gm, "<h4>$1</h4>")
+          .replace(/^## (.*)$/gm, "<h4>$1</h4>")
+          .replace(/^- (.*)$/gm, "<div class=\"md-list-item\">$1</div>")
+          .replace(/\n/g, "<br>");
+      },
+      escapeHtml(content) {
+        return content
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
       },
       sendAgentChat() {
         if (!this.shopId) {
@@ -623,6 +707,7 @@
       applyChatResult(data) {
         // 后端 chat 接口已经完成“意图识别 -> 工具调用 -> 消息落库”，前端只负责把结果同步到当前视图。
         this.report = data || {};
+        this.lastAgentResult = data || {};
         this.activeSessionId = data.sessionId;
         this.chatPrompt = "";
         if (data.draft) {
@@ -909,6 +994,67 @@
       },
       metric(key) {
         return this.report.orderAnalysis && this.report.orderAnalysis[key] !== undefined ? this.report.orderAnalysis[key] : 0;
+      },
+      modelResponse() {
+        return this.lastAgentResult && this.lastAgentResult.modelResponse ? this.lastAgentResult.modelResponse : {};
+      },
+      modelProvider() {
+        return this.modelResponse().provider || "等待调用";
+      },
+      modelName() {
+        return this.modelResponse().modelName || "-";
+      },
+      promptVersion() {
+        return this.modelResponse().promptVersion || "-";
+      },
+      modelCostMillis() {
+        const cost = this.modelResponse().costMillis;
+        return cost === undefined || cost === null ? "-" : cost + "ms";
+      },
+      modelConfidence() {
+        const confidence = this.modelResponse().confidence;
+        return confidence === undefined || confidence === null ? "-" : confidence + "%";
+      },
+      modelReasoning() {
+        // 这里展示的是模型客户端说明，不展示模型内部思考链，避免把黑盒推理误当成业务依据。
+        return this.modelResponse().reasoning || "";
+      },
+      currentToolExecution() {
+        return this.lastAgentResult && this.lastAgentResult.toolExecution ? this.lastAgentResult.toolExecution : {};
+      },
+      currentToolName() {
+        return this.currentToolExecution().toolName || (this.lastAgentResult.promptContext && this.lastAgentResult.promptContext.selectedToolName) || "";
+      },
+      toolCostMillis() {
+        const cost = this.currentToolExecution().costMillis;
+        return cost === undefined || cost === null ? "-" : cost + "ms";
+      },
+      toolSuccessText() {
+        const success = this.currentToolExecution().success;
+        if (success === undefined || success === null) return "未执行";
+        return success ? "成功" : "失败";
+      },
+      toolResultSummary() {
+        const data = this.currentToolExecution().data || this.lastAgentResult.toolResult || {};
+        const order = data.orderAnalysis || {};
+        const voucher = data.voucherAnalysis || {};
+        if (order.totalOrders !== undefined) {
+          return "订单 " + (order.totalOrders || 0)
+            + " 笔，已支付 " + (order.paidOrders || 0)
+            + " 笔，转化率 " + (order.conversionRate || "0.00%");
+        }
+        if (voucher.onlineVouchers !== undefined) {
+          return "在线券 " + (voucher.onlineVouchers || 0)
+            + " 张，秒杀券 " + (voucher.seckillVouchers || 0)
+            + " 张，库存 " + (voucher.seckillStock || 0);
+        }
+        if (data.shopProfile && data.shopProfile.name) {
+          return "已读取店铺：" + data.shopProfile.name;
+        }
+        return "";
+      },
+      flowSteps() {
+        return this.lastAgentResult && this.lastAgentResult.flowTrace ? this.lastAgentResult.flowTrace : [];
       },
       voucherMetric(key) {
         return this.report.voucherAnalysis && this.report.voucherAnalysis[key] !== undefined ? this.report.voucherAnalysis[key] : 0;
