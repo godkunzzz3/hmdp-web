@@ -212,7 +212,14 @@
           @keyup.enter.native.exact="sendAgentChat">
         </el-input>
         <div class="compose-actions">
-          <el-checkbox v-model="chatAutoDraft">命中活动方案时自动生成草稿</el-checkbox>
+          <div class="compose-options">
+            <el-checkbox v-model="chatAutoDraft" :disabled="toolCallingMode">命中活动方案时自动生成草稿</el-checkbox>
+            <el-switch
+              v-model="toolCallingMode"
+              active-text="Tool Calling 模式"
+              inactive-text="普通模式">
+            </el-switch>
+          </div>
           <el-button type="primary" icon="el-icon-position" :loading="chatSending" @click="sendAgentChat">发送给 Agent</el-button>
         </div>
       </div>
@@ -323,6 +330,12 @@
         <div class="tool-summary" v-if="toolResultSummary()">{{toolResultSummary()}}</div>
       </div>
       <div class="empty-block" v-else>发送一次 Agent 会话后，这里会显示工具调用结果。</div>
+      <div class="tool-call-list" v-if="toolCallRows().length > 1">
+        <div class="tool-call-row" v-for="item in toolCallRows()" :key="item.toolName">
+          <span>{{item.toolName}}</span>
+          <strong>{{item.costMillis || 0}}ms</strong>
+        </div>
+      </div>
     </div>
 
     <div class="explain-card">
@@ -511,6 +524,7 @@
       chatSending: false,
       chatPrompt: "",
       chatAutoDraft: true,
+      toolCallingMode: false,
       quickPrompts: [
         "帮我分析最近7天订单",
         "帮我设计一张周末秒杀券",
@@ -690,13 +704,18 @@
           return;
         }
         this.chatSending = true;
-        this.pageMessage = "Agent 正在识别意图并调用运营工具...";
+        this.pageMessage = this.toolCallingMode
+          ? "模型正在自主选择只读工具..."
+          : "Agent 正在识别意图并调用运营工具...";
         const payload = {
           message,
           dateRange: this.dateRange,
+          sessionId: this.activeSessionId || "",
+          conversationId: this.activeSessionId || "",
           autoDraft: this.chatAutoDraft
         };
-        axios.post("/merchant-agent/shops/" + this.shopId + "/chat", payload)
+        const url = "/merchant-agent/shops/" + this.shopId + (this.toolCallingMode ? "/tool-chat" : "/chat");
+        axios.post(url, payload)
           .then(({data}) => this.applyChatResult(data))
           .catch(err => this.$message.error(err))
           .finally(() => {
@@ -705,12 +724,14 @@
           });
       },
       applyChatResult(data) {
-        // 后端 chat 接口已经完成“意图识别 -> 工具调用 -> 消息落库”，前端只负责把结果同步到当前视图。
+        // 后端 chat/tool-chat 接口已经完成“工具调用 -> 消息落库”，前端只负责把结果同步到当前视图。
         this.report = data || {};
         this.lastAgentResult = data || {};
         this.activeSessionId = data.sessionId;
         this.chatPrompt = "";
-        if (data.draft) {
+        if (data.toolCalling) {
+          this.$message.success("Tool Calling 模式已完成");
+        } else if (data.draft) {
           this.draft = data.draft;
           this.$message.success("Agent 已生成待确认活动草稿");
         } else if (data.suggestionId) {
@@ -996,7 +1017,20 @@
         return this.report.orderAnalysis && this.report.orderAnalysis[key] !== undefined ? this.report.orderAnalysis[key] : 0;
       },
       modelResponse() {
-        return this.lastAgentResult && this.lastAgentResult.modelResponse ? this.lastAgentResult.modelResponse : {};
+        if (this.lastAgentResult && this.lastAgentResult.modelResponse) {
+          return this.lastAgentResult.modelResponse;
+        }
+        if (this.lastAgentResult && this.lastAgentResult.toolCalling) {
+          return {
+            provider: this.lastAgentResult.provider,
+            modelName: this.lastAgentResult.modelName,
+            promptVersion: this.lastAgentResult.promptVersion,
+            costMillis: this.lastAgentResult.costMillis,
+            confidence: null,
+            reasoning: "LangChain4j Tool Calling 模式：模型先选择只读工具，后端执行工具后再生成最终回复。"
+          };
+        }
+        return {};
       },
       modelProvider() {
         return this.modelResponse().provider || "等待调用";
@@ -1023,18 +1057,30 @@
         return this.lastAgentResult && this.lastAgentResult.toolExecution ? this.lastAgentResult.toolExecution : {};
       },
       currentToolName() {
+        if (this.lastAgentResult && this.lastAgentResult.calledTools && this.lastAgentResult.calledTools.length) {
+          return this.lastAgentResult.calledTools.join("、");
+        }
         return this.currentToolExecution().toolName || (this.lastAgentResult.promptContext && this.lastAgentResult.promptContext.selectedToolName) || "";
       },
       toolCostMillis() {
+        if (this.lastAgentResult && this.lastAgentResult.toolCalls && this.lastAgentResult.toolCalls.length) {
+          const total = this.lastAgentResult.toolCalls.reduce((sum, item) => sum + (item.costMillis || 0), 0);
+          return total + "ms";
+        }
         const cost = this.currentToolExecution().costMillis;
         return cost === undefined || cost === null ? "-" : cost + "ms";
       },
       toolSuccessText() {
+        if (this.lastAgentResult && this.lastAgentResult.toolCalling) return "成功";
         const success = this.currentToolExecution().success;
         if (success === undefined || success === null) return "未执行";
         return success ? "成功" : "失败";
       },
       toolResultSummary() {
+        if (this.lastAgentResult && this.lastAgentResult.toolCalls && this.lastAgentResult.toolCalls.length) {
+          const names = this.lastAgentResult.toolCalls.map(item => item.toolName).join("、");
+          return "模型自主选择并调用：" + names;
+        }
         const data = this.currentToolExecution().data || this.lastAgentResult.toolResult || {};
         const order = data.orderAnalysis || {};
         const voucher = data.voucherAnalysis || {};
@@ -1052,6 +1098,9 @@
           return "已读取店铺：" + data.shopProfile.name;
         }
         return "";
+      },
+      toolCallRows() {
+        return this.lastAgentResult && this.lastAgentResult.toolCalls ? this.lastAgentResult.toolCalls : [];
       },
       flowSteps() {
         return this.lastAgentResult && this.lastAgentResult.flowTrace ? this.lastAgentResult.flowTrace : [];
