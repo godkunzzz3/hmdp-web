@@ -364,6 +364,10 @@
         <div>库存：{{draft.stock || '不限'}}</div>
         <div>时间：{{formatTime(draft.beginTime)}} - {{formatTime(draft.endTime)}}</div>
       </div>
+      <div class="hitl-box" :class="{done: draft.confirmed}">
+        <strong>{{draft.confirmed ? '商家已确认' : '等待商家确认'}}</strong>
+        <span>{{draft.humanInLoopMessage || 'Agent 只生成草稿，真实活动必须由商家确认后创建。'}}</span>
+      </div>
       <div style="margin-top:14px">
         <el-button size="small" @click="editDraft(draft)" :disabled="draft.status !== 1">编辑草稿</el-button>
         <el-button type="primary" size="small" :loading="confirmingDraftId === draft.draftId" @click="confirmDraft(draft)" :disabled="draft.status !== 1">确认创建</el-button>
@@ -920,7 +924,12 @@
       confirmDraft(draft) {
         const target = draft || this.draft;
         if (!target) return;
-        this.$confirm("确认后将创建真实优惠券，用户可在店铺详情页看到该活动。", "确认创建活动", {
+        const content = "确认后将创建真实优惠券，用户可在店铺详情页看到该活动。\\n\\n"
+          + "活动：" + target.title + "\\n"
+          + "类型：" + target.draftTypeName + "\\n"
+          + "售价：¥" + this.price(target.payValue) + "，抵扣：¥" + this.price(target.actualValue) + "\\n"
+          + "库存：" + (target.stock || "不限");
+        this.$confirm(content, "人工确认创建活动", {
           confirmButtonText: "确认创建",
           cancelButtonText: "取消",
           type: "warning"

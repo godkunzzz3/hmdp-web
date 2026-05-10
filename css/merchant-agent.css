@@ -636,6 +636,36 @@ body {
   color: #747d8a;
 }
 
+.hitl-box {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #ffd2c2;
+  background: #fff7f4;
+  color: #68707c;
+  line-height: 20px;
+}
+
+.hitl-box strong {
+  display: block;
+  color: #ff6633;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.hitl-box span {
+  font-size: 12px;
+}
+
+.hitl-box.done {
+  border-color: #caead8;
+  background: #f1fbf5;
+}
+
+.hitl-box.done strong {
+  color: #26834d;
+}
+
 .row-actions {
   display: flex;
   justify-content: flex-end;
