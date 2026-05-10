@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
   <title>商家运营 Agent</title>
   <link rel="stylesheet" href="./css/element.css">
-  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260505-1">
+  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260510-knowledge">
 </head>
 <body>
 <div id="merchant-app">
@@ -23,6 +23,7 @@
     <div class="nav-item" :class="{active: activeView === 'agentActions'}" @click="switchView('agentActions')"><i class="el-icon-magic-stick"></i>智能行动</div>
     <div class="nav-item" :class="{active: activeView === 'drafts'}" @click="switchView('drafts')"><i class="el-icon-tickets"></i>优惠券草稿</div>
     <div class="nav-item" :class="{active: activeView === 'actions'}" @click="switchView('actions')"><i class="el-icon-document-checked"></i>操作审计</div>
+    <div class="nav-item" :class="{active: activeView === 'knowledge'}" @click="switchView('knowledge')"><i class="el-icon-collection"></i>知识库</div>
 
     <div class="side-section">
       <div class="section-title">当前店铺</div>
@@ -298,6 +299,52 @@
       </div>
       <div class="empty-block" v-else>暂无操作记录</div>
     </section>
+
+    <section class="report-card" v-if="activeView === 'knowledge'">
+      <div class="card-head">
+        <div>
+          <div class="card-title">RAG 知识库</div>
+          <div class="chat-sub">这些运营规则会在 Agent 回答前被检索，并注入 Prompt 作为业务依据。</div>
+        </div>
+        <div class="knowledge-actions">
+          <el-button size="mini" icon="el-icon-refresh" :loading="knowledgeLoading" @click="loadKnowledgeDocs">刷新</el-button>
+          <el-button size="mini" type="primary" icon="el-icon-plus" @click="openKnowledgeCreate">新增知识</el-button>
+        </div>
+      </div>
+
+      <div class="knowledge-filter">
+        <el-select v-model="knowledgeFilter.category" size="small" placeholder="知识分类" clearable>
+          <el-option v-for="item in knowledgeCategories" :key="item.value" :label="item.label" :value="item.value"></el-option>
+        </el-select>
+        <el-select v-model="knowledgeFilter.status" size="small" placeholder="状态" clearable>
+          <el-option label="启用" :value="1"></el-option>
+          <el-option label="停用" :value="0"></el-option>
+        </el-select>
+        <el-input v-model="knowledgeFilter.keyword" size="small" placeholder="搜索标题或正文关键词" clearable @keyup.enter.native="loadKnowledgeDocs"></el-input>
+        <el-button size="small" type="primary" @click="loadKnowledgeDocs">查询</el-button>
+      </div>
+
+      <div class="knowledge-grid" v-if="knowledgeDocs.length">
+        <div class="knowledge-card" v-for="doc in knowledgeDocs" :key="doc.docId || doc.id">
+          <div class="knowledge-card-head">
+            <div>
+              <div class="knowledge-title">{{doc.title}}</div>
+              <div class="knowledge-meta">
+                <span>{{doc.categoryName || categoryName(doc.category)}}</span>
+                <span>更新 {{formatTime(doc.updateTime || doc.createTime)}}</span>
+              </div>
+            </div>
+            <span class="knowledge-status" :class="{disabled: doc.status === 0}">{{doc.statusName || (doc.status === 0 ? '停用' : '启用')}}</span>
+          </div>
+          <div class="knowledge-content">{{shortText(doc.content, 160)}}</div>
+          <div class="knowledge-card-actions">
+            <el-button size="mini" @click="openKnowledgeEdit(doc)">编辑</el-button>
+            <el-button size="mini" type="warning" plain @click="disableKnowledge(doc)" :disabled="doc.status === 0">停用</el-button>
+          </div>
+        </div>
+      </div>
+      <div class="empty-block" v-else>暂无知识文档。可以先新增一条优惠券规则或行业案例。</div>
+    </section>
   </main>
 
   <aside class="right">
@@ -432,6 +479,32 @@
     </span>
   </el-dialog>
 
+  <el-dialog :title="knowledgeEditingId ? '编辑知识文档' : '新增知识文档'" :visible.sync="knowledgeDialogVisible" width="620px" custom-class="knowledge-dialog">
+    <el-form label-position="top" class="draft-edit-form">
+      <el-form-item label="知识标题">
+        <el-input v-model="knowledgeForm.title" maxlength="80" show-word-limit placeholder="例如：周末秒杀券小库存规则"></el-input>
+      </el-form-item>
+      <el-form-item label="知识分类">
+        <el-select v-model="knowledgeForm.category" placeholder="请选择分类">
+          <el-option v-for="item in knowledgeCategories" :key="item.value" :label="item.label" :value="item.value"></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="知识正文">
+        <el-input v-model="knowledgeForm.content" type="textarea" :rows="7" maxlength="1000" show-word-limit placeholder="写清楚适用场景、建议动作、风险边界。"></el-input>
+      </el-form-item>
+      <el-form-item label="状态">
+        <el-radio-group v-model="knowledgeForm.status">
+          <el-radio :label="1">启用</el-radio>
+          <el-radio :label="0">停用</el-radio>
+        </el-radio-group>
+      </el-form-item>
+    </el-form>
+    <span slot="footer" class="dialog-footer">
+      <el-button @click="knowledgeDialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="knowledgeSaving" @click="submitKnowledgeDoc">保存知识</el-button>
+    </span>
+  </el-dialog>
+
   <el-dialog title="活动效果复盘" :visible.sync="effectDialogVisible" width="620px" custom-class="effect-dialog">
     <div v-if="effectData" class="effect-panel">
       <div class="effect-head">
@@ -523,6 +596,7 @@
       suggestions: [],
       drafts: [],
       actions: [],
+      knowledgeDocs: [],
       draft: null,
       activeSessionId: "",
       activeView: "overview",
@@ -530,11 +604,14 @@
       reportLoading: false,
       draftLoading: false,
       actionLoading: false,
+      knowledgeLoading: false,
       creatingSuggestionId: "",
       confirmingDraftId: "",
       editDialogVisible: false,
       effectDialogVisible: false,
+      knowledgeDialogVisible: false,
       editSaving: false,
+      knowledgeSaving: false,
       effectLoadingDraftId: "",
       effectSuggesting: false,
       effectDrafting: false,
@@ -551,6 +628,25 @@
         "帮我设计一张周末秒杀券",
         "帮我看看评价和探店内容有什么问题"
       ],
+      knowledgeCategories: [
+        {label: "优惠券规则", value: "voucher_rule"},
+        {label: "秒杀活动规则", value: "seckill_rule"},
+        {label: "行业运营案例", value: "industry_case"},
+        {label: "平台风控规则", value: "risk_rule"},
+        {label: "成本计算规则", value: "cost_rule"}
+      ],
+      knowledgeFilter: {
+        category: "",
+        keyword: "",
+        status: 1
+      },
+      knowledgeEditingId: "",
+      knowledgeForm: {
+        title: "",
+        category: "voucher_rule",
+        content: "",
+        status: 1
+      },
       editingDraftId: "",
       editForm: {
         draftType: "",
@@ -597,6 +693,7 @@
             this.loadSuggestions();
             this.loadDrafts();
             this.loadActions();
+            this.loadKnowledgeDocs();
           })
           .catch(err => this.$message.error(err));
       },
@@ -639,6 +736,19 @@
           .catch(err => this.$message.error(err))
           .finally(() => this.actionLoading = false);
       },
+      loadKnowledgeDocs() {
+        this.knowledgeLoading = true;
+        const params = {};
+        if (this.knowledgeFilter.category) params.category = this.knowledgeFilter.category;
+        if (this.knowledgeFilter.keyword) params.keyword = this.knowledgeFilter.keyword.trim();
+        if (this.knowledgeFilter.status !== "" && this.knowledgeFilter.status !== null && this.knowledgeFilter.status !== undefined) {
+          params.status = this.knowledgeFilter.status;
+        }
+        axios.get("/merchant-agent/knowledge-docs", {params})
+          .then(({data}) => this.knowledgeDocs = data || [])
+          .catch(err => this.$message.error(err))
+          .finally(() => this.knowledgeLoading = false);
+      },
       switchView(view) {
         this.activeView = view;
         this.pageMessage = "";
@@ -646,6 +756,7 @@
         if (view === "agentActions") this.loadSuggestions();
         if (view === "drafts") this.loadDrafts();
         if (view === "actions") this.loadActions();
+        if (view === "knowledge") this.loadKnowledgeDocs();
       },
       selectSession(session) {
         this.activeSessionId = session.sessionId;
@@ -1038,6 +1149,79 @@
         }).catch(err => {
           if (err !== "cancel") this.$message.error(err);
         });
+      },
+      openKnowledgeCreate() {
+        this.knowledgeEditingId = "";
+        this.knowledgeForm = {
+          title: "",
+          category: this.knowledgeFilter.category || "voucher_rule",
+          content: "",
+          status: 1
+        };
+        this.knowledgeDialogVisible = true;
+      },
+      openKnowledgeEdit(doc) {
+        this.knowledgeEditingId = doc.docId || doc.id;
+        this.knowledgeForm = {
+          title: doc.title || "",
+          category: doc.category || "voucher_rule",
+          content: doc.content || "",
+          status: doc.status === 0 ? 0 : 1
+        };
+        this.knowledgeDialogVisible = true;
+      },
+      submitKnowledgeDoc() {
+        const message = this.validateKnowledgeForm();
+        if (message) {
+          this.$message.error(message);
+          return;
+        }
+        const payload = {
+          title: this.knowledgeForm.title.trim(),
+          category: this.knowledgeForm.category,
+          content: this.knowledgeForm.content.trim(),
+          status: this.knowledgeForm.status
+        };
+        const request = this.knowledgeEditingId
+          ? axios.put("/merchant-agent/knowledge-docs/" + this.knowledgeEditingId, payload)
+          : axios.post("/merchant-agent/knowledge-docs", payload);
+        this.knowledgeSaving = true;
+        request.then(() => {
+          this.knowledgeDialogVisible = false;
+          this.$message.success(this.knowledgeEditingId ? "知识文档已更新" : "知识文档已新增");
+          this.loadKnowledgeDocs();
+        }).catch(err => this.$message.error(err))
+          .finally(() => this.knowledgeSaving = false);
+      },
+      validateKnowledgeForm() {
+        if (!this.knowledgeForm.title || !this.knowledgeForm.title.trim()) {
+          return "知识标题不能为空";
+        }
+        if (!this.knowledgeForm.category) {
+          return "请选择知识分类";
+        }
+        if (!this.knowledgeForm.content || !this.knowledgeForm.content.trim()) {
+          return "知识正文不能为空";
+        }
+        return "";
+      },
+      disableKnowledge(doc) {
+        this.$confirm("停用后，该知识不会再被 Agent RAG 检索召回。", "停用知识文档", {
+          confirmButtonText: "停用",
+          cancelButtonText: "取消",
+          type: "warning"
+        }).then(() => {
+          return axios.post("/merchant-agent/knowledge-docs/" + (doc.docId || doc.id) + "/disable");
+        }).then(() => {
+          this.$message.success("知识文档已停用");
+          this.loadKnowledgeDocs();
+        }).catch(err => {
+          if (err !== "cancel") this.$message.error(err);
+        });
+      },
+      categoryName(category) {
+        const item = this.knowledgeCategories.find(row => row.value === category);
+        return item ? item.label : "其他知识";
       },
       metric(key) {
         return this.report.orderAnalysis && this.report.orderAnalysis[key] !== undefined ? this.report.orderAnalysis[key] : 0;
