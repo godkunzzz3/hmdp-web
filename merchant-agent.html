@@ -339,6 +339,23 @@
     </div>
 
     <div class="explain-card">
+      <div class="explain-head">
+        <span>RAG 知识来源</span>
+        <span class="tool-cost">{{ragRetrievalMode()}}</span>
+      </div>
+      <div class="rag-list" v-if="ragKnowledgeRows().length">
+        <div class="rag-item" v-for="item in ragKnowledgeRows()" :key="item.docId || item.id">
+          <div class="rag-top">
+            <strong>{{item.title}}</strong>
+            <span>{{item.categoryName || item.category || '知识'}}</span>
+          </div>
+          <div class="rag-content">{{shortText(item.content, 86)}}</div>
+        </div>
+      </div>
+      <div class="empty-block" v-else>本轮没有召回知识库内容。</div>
+    </div>
+
+    <div class="explain-card">
       <div class="explain-head">Agent 执行链路</div>
       <div class="flow-list" v-if="flowSteps().length">
         <div class="flow-step" v-for="step in flowSteps()" :key="step.stepCode">
@@ -1110,6 +1127,19 @@
       },
       toolCallRows() {
         return this.lastAgentResult && this.lastAgentResult.toolCalls ? this.lastAgentResult.toolCalls : [];
+      },
+      ragKnowledgeRows() {
+        const context = this.lastAgentResult && this.lastAgentResult.promptContext ? this.lastAgentResult.promptContext : {};
+        return context.ragKnowledge || [];
+      },
+      ragRetrievalMode() {
+        const context = this.lastAgentResult && this.lastAgentResult.promptContext ? this.lastAgentResult.promptContext : {};
+        return context.ragRetrievalMode || "未检索";
+      },
+      shortText(text, maxLength) {
+        const value = text || "";
+        if (value.length <= maxLength) return value;
+        return value.substring(0, maxLength) + "...";
       },
       flowSteps() {
         return this.lastAgentResult && this.lastAgentResult.flowTrace ? this.lastAgentResult.flowTrace : [];

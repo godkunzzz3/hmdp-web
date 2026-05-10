@@ -1012,6 +1012,49 @@ body {
   color: #303741;
 }
 
+.rag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rag-item {
+  padding: 12px;
+  border-radius: 9px;
+  border: 1px solid #ffe0d4;
+  background: #fffaf8;
+}
+
+.rag-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.rag-top strong {
+  color: #20242a;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.rag-top span {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #ff6633;
+  background: #fff0ea;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.rag-content {
+  color: #68707c;
+  font-size: 12px;
+  line-height: 18px;
+}
+
 .flow-list {
   display: flex;
   flex-direction: column;
