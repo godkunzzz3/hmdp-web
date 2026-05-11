@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
   <title>商家运营 Agent</title>
   <link rel="stylesheet" href="./css/element.css">
-  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260510-knowledge">
+  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260511-rag-debug">
 </head>
 <body>
 <div id="merchant-app">
@@ -323,6 +323,62 @@
         </el-select>
         <el-input v-model="knowledgeFilter.keyword" size="small" placeholder="搜索标题或正文关键词" clearable @keyup.enter.native="loadKnowledgeDocs"></el-input>
         <el-button size="small" type="primary" @click="loadKnowledgeDocs">查询</el-button>
+      </div>
+
+      <div class="rag-debug-panel">
+        <div class="rag-debug-form">
+          <div>
+            <div class="mini-title">RAG 召回调试</div>
+            <div class="chat-sub">输入一句商家问题，直接查看语义检索命中的知识、相似度和兜底状态。</div>
+          </div>
+          <el-select v-model="ragDebug.intent" size="small" placeholder="业务意图">
+            <el-option label="活动/优惠券方案" value="voucher_plan"></el-option>
+            <el-option label="订单经营分析" value="order_analysis"></el-option>
+            <el-option label="评价分析" value="review_analysis"></el-option>
+            <el-option label="综合运营问答" value="operation_chat"></el-option>
+          </el-select>
+          <el-input
+            v-model="ragDebug.message"
+            size="small"
+            placeholder="例如：帮我设计一张周末秒杀券"
+            clearable
+            @keyup.enter.native="debugRagRetrieve">
+          </el-input>
+          <el-button size="small" type="primary" icon="el-icon-search" :loading="ragDebug.loading" @click="debugRagRetrieve">测试召回</el-button>
+        </div>
+
+        <div class="rag-debug-result" v-if="ragDebug.result">
+          <div class="rag-debug-summary">
+            <div>
+              <span>检索模式</span>
+              <strong :class="{semantic: ragDebug.result.retrievalMode === 'semantic_vector'}">{{ragDebug.result.retrievalMode}}</strong>
+            </div>
+            <div>
+              <span>命中数量</span>
+              <strong>{{ragDebug.result.hitCount || 0}}</strong>
+            </div>
+            <div>
+              <span>业务意图</span>
+              <strong>{{ragDebug.result.intent}}</strong>
+            </div>
+          </div>
+          <div class="rag-debug-explain">{{ragDebug.result.explain}}</div>
+          <div class="rag-list" v-if="ragDebugDocs().length">
+            <div class="rag-item" v-for="doc in ragDebugDocs()" :key="doc.docId || doc.id">
+              <div class="rag-top">
+                <strong>{{doc.title}}</strong>
+                <span>{{doc.categoryName || categoryName(doc.category)}}</span>
+              </div>
+              <div class="rag-score-row">
+                <code>{{doc.retrievalMode || ragDebug.result.retrievalMode}}</code>
+                <b v-if="doc.similarityScore !== undefined">相似度 {{doc.similarityScore}}</b>
+                <b v-else>关键词兜底</b>
+              </div>
+              <div class="rag-content">{{shortText(doc.content, 130)}}</div>
+            </div>
+          </div>
+          <div class="empty-block" v-else>没有召回知识，可以先完成知识向量化或补充更相关的规则。</div>
+        </div>
       </div>
 
       <div class="knowledge-grid" v-if="knowledgeDocs.length">
@@ -676,6 +732,12 @@
         title: "",
         category: "voucher_rule",
         file: null
+      },
+      ragDebug: {
+        message: "帮我设计一张周末秒杀券",
+        intent: "voucher_plan",
+        loading: false,
+        result: null
       },
       editingDraftId: "",
       editForm: {
@@ -1300,6 +1362,33 @@
       categoryName(category) {
         const item = this.knowledgeCategories.find(row => row.value === category);
         return item ? item.label : "其他知识";
+      },
+      debugRagRetrieve() {
+        const message = (this.ragDebug.message || "").trim();
+        if (!message) {
+          this.$message.warning("请输入要调试的商家问题");
+          return;
+        }
+        const payload = {
+          message,
+          intent: this.ragDebug.intent || "operation_chat",
+          limit: 3
+        };
+        this.ragDebug.loading = true;
+        axios.post("/merchant-agent/knowledge-docs/retrieve-debug", payload)
+          .then(({data}) => {
+            this.ragDebug.result = data || {};
+            if (this.ragDebug.result.retrievalMode === "semantic_vector") {
+              this.$message.success("语义向量召回成功");
+            } else {
+              this.$message.warning("已返回召回结果，当前为兜底检索");
+            }
+          })
+          .catch(err => this.$message.error(err))
+          .finally(() => this.ragDebug.loading = false);
+      },
+      ragDebugDocs() {
+        return this.ragDebug.result && this.ragDebug.result.documents ? this.ragDebug.result.documents : [];
       },
       metric(key) {
         return this.report.orderAnalysis && this.report.orderAnalysis[key] !== undefined ? this.report.orderAnalysis[key] : 0;

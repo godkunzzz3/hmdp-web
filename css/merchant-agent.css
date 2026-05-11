@@ -798,6 +798,88 @@ body {
   margin-top: 12px;
 }
 
+.rag-debug-panel {
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid #ffd7c8;
+  border-radius: 8px;
+  background: #fffaf8;
+}
+
+.rag-debug-form {
+  display: grid;
+  grid-template-columns: 1.2fr 170px minmax(260px, 1fr) 118px;
+  gap: 10px;
+  align-items: center;
+}
+
+.rag-debug-result {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #ffe0d4;
+}
+
+.rag-debug-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.rag-debug-summary div {
+  padding: 10px 12px;
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.rag-debug-summary span {
+  display: block;
+  color: #8a929f;
+  font-size: 12px;
+}
+
+.rag-debug-summary strong {
+  display: block;
+  margin-top: 5px;
+  color: #303741;
+  font-size: 14px;
+  word-break: break-all;
+}
+
+.rag-debug-summary strong.semantic {
+  color: #26834d;
+}
+
+.rag-debug-explain {
+  margin-bottom: 10px;
+  color: #68707c;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.rag-score-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 7px;
+  color: #68707c;
+  font-size: 12px;
+}
+
+.rag-score-row code {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: #e8edf5;
+  color: #334155;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.rag-score-row b {
+  color: #ff6633;
+  font-weight: 900;
+}
+
 .knowledge-dialog .el-select {
   width: 100%;
 }
@@ -1572,7 +1654,9 @@ body {
   }
 
   .knowledge-filter,
-  .knowledge-grid {
+  .knowledge-grid,
+  .rag-debug-form,
+  .rag-debug-summary {
     grid-template-columns: 1fr;
   }
 
