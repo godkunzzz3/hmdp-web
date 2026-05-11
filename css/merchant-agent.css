@@ -802,6 +802,32 @@ body {
   width: 100%;
 }
 
+.knowledge-file-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #dce2ea;
+  border-radius: 8px;
+  background: #fff;
+  color: #303741;
+}
+
+.upload-tip {
+  margin-top: 8px;
+  color: #8a929f;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.upload-file-name {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff7f4;
+  color: #ff6633;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .chart-lines {
   height: 112px;
   display: flex;

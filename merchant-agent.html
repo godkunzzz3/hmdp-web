@@ -309,6 +309,7 @@
         <div class="knowledge-actions">
           <el-button size="mini" icon="el-icon-refresh" :loading="knowledgeLoading" @click="loadKnowledgeDocs">刷新</el-button>
           <el-button size="mini" type="primary" icon="el-icon-plus" @click="openKnowledgeCreate">新增知识</el-button>
+          <el-button size="mini" icon="el-icon-upload2" @click="openKnowledgeUpload">上传文件</el-button>
         </div>
       </div>
 
@@ -505,6 +506,28 @@
     </span>
   </el-dialog>
 
+  <el-dialog title="上传知识文件" :visible.sync="knowledgeUploadVisible" width="560px" custom-class="knowledge-dialog">
+    <el-form label-position="top" class="draft-edit-form">
+      <el-form-item label="知识分类">
+        <el-select v-model="knowledgeUploadForm.category" placeholder="请选择分类">
+          <el-option v-for="item in knowledgeCategories" :key="item.value" :label="item.label" :value="item.value"></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="知识标题">
+        <el-input v-model="knowledgeUploadForm.title" maxlength="80" show-word-limit placeholder="为空时使用文件名"></el-input>
+      </el-form-item>
+      <el-form-item label="文件">
+        <input class="knowledge-file-input" type="file" accept=".txt,.md" @change="onKnowledgeFileChange">
+        <div class="upload-tip">仅支持 .txt / .md，建议 UTF-8 编码，单文件不超过 256KB。</div>
+        <div class="upload-file-name" v-if="knowledgeUploadForm.file">{{knowledgeUploadForm.file.name}}</div>
+      </el-form-item>
+    </el-form>
+    <span slot="footer" class="dialog-footer">
+      <el-button @click="knowledgeUploadVisible = false">取消</el-button>
+      <el-button type="primary" :loading="knowledgeUploading" @click="submitKnowledgeUpload">上传导入</el-button>
+    </span>
+  </el-dialog>
+
   <el-dialog title="活动效果复盘" :visible.sync="effectDialogVisible" width="620px" custom-class="effect-dialog">
     <div v-if="effectData" class="effect-panel">
       <div class="effect-head">
@@ -610,8 +633,10 @@
       editDialogVisible: false,
       effectDialogVisible: false,
       knowledgeDialogVisible: false,
+      knowledgeUploadVisible: false,
       editSaving: false,
       knowledgeSaving: false,
+      knowledgeUploading: false,
       effectLoadingDraftId: "",
       effectSuggesting: false,
       effectDrafting: false,
@@ -646,6 +671,11 @@
         category: "voucher_rule",
         content: "",
         status: 1
+      },
+      knowledgeUploadForm: {
+        title: "",
+        category: "voucher_rule",
+        file: null
       },
       editingDraftId: "",
       editForm: {
@@ -1218,6 +1248,54 @@
         }).catch(err => {
           if (err !== "cancel") this.$message.error(err);
         });
+      },
+      openKnowledgeUpload() {
+        this.knowledgeUploadForm = {
+          title: "",
+          category: this.knowledgeFilter.category || "voucher_rule",
+          file: null
+        };
+        this.knowledgeUploadVisible = true;
+      },
+      onKnowledgeFileChange(event) {
+        const file = event.target.files && event.target.files.length ? event.target.files[0] : null;
+        this.knowledgeUploadForm.file = file;
+      },
+      submitKnowledgeUpload() {
+        const message = this.validateKnowledgeUpload();
+        if (message) {
+          this.$message.error(message);
+          return;
+        }
+        const formData = new FormData();
+        formData.append("category", this.knowledgeUploadForm.category);
+        formData.append("title", this.knowledgeUploadForm.title || "");
+        formData.append("file", this.knowledgeUploadForm.file);
+        this.knowledgeUploading = true;
+        axios.post("/merchant-agent/knowledge-docs/upload", formData, {
+          headers: {"Content-Type": "multipart/form-data"}
+        }).then(() => {
+          this.knowledgeUploadVisible = false;
+          this.$message.success("知识文件已导入");
+          this.loadKnowledgeDocs();
+        }).catch(err => this.$message.error(err))
+          .finally(() => this.knowledgeUploading = false);
+      },
+      validateKnowledgeUpload() {
+        if (!this.knowledgeUploadForm.category) {
+          return "请选择知识分类";
+        }
+        if (!this.knowledgeUploadForm.file) {
+          return "请选择要上传的文件";
+        }
+        const name = this.knowledgeUploadForm.file.name || "";
+        if (!name.endsWith(".txt") && !name.endsWith(".md")) {
+          return "仅支持 .txt 或 .md 文件";
+        }
+        if (this.knowledgeUploadForm.file.size > 256 * 1024) {
+          return "知识文件不能超过256KB";
+        }
+        return "";
       },
       categoryName(category) {
         const item = this.knowledgeCategories.find(row => row.value === category);
