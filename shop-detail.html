@@ -203,6 +203,7 @@
         .catch(this.$message.error)
       },
       buyVoucher(v){
+        const token = sessionStorage.getItem("token");
         if(!token){
           this.$message.error("请先登录")
           setTimeout(() => location.href = "/login.html", 200);
@@ -242,6 +243,7 @@
         return new Date(v.endTime).getTime() < new Date().getTime();
       },
       seckill(v){
+        const token = sessionStorage.getItem("token");
         if(!token){
           this.$message.error("请先登录")
           // 未登录，跳转
