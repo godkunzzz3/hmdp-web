@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
   <title>商家运营 Agent</title>
   <link rel="stylesheet" href="./css/element.css">
-  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260511-rag-debug">
+  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260512-rag-eval">
 </head>
 <body>
 <div id="merchant-app">
@@ -381,6 +381,57 @@
         </div>
       </div>
 
+      <div class="rag-eval-panel">
+        <div class="rag-eval-head">
+          <div>
+            <div class="mini-title">RAG 批量评测</div>
+            <div class="chat-sub">用固定测试集检查 TopK 是否命中预期分类，避免每次只凭感觉判断召回效果。</div>
+          </div>
+          <el-button size="small" type="primary" icon="el-icon-data-analysis" :loading="ragEval.loading" @click="runRagEvaluation">
+            运行评测
+          </el-button>
+        </div>
+
+        <div class="rag-eval-result" v-if="ragEval.result">
+          <div class="rag-eval-score">
+            <div>
+              <span>通过率</span>
+              <strong>{{ragEval.result.passRate || '0.00%'}}</strong>
+            </div>
+            <div>
+              <span>通过 / 总数</span>
+              <strong>{{ragEval.result.passCount || 0}} / {{ragEval.result.total || 0}}</strong>
+            </div>
+            <div>
+              <span>TopK</span>
+              <strong>{{ragEval.result.limit || 3}}</strong>
+            </div>
+          </div>
+          <div class="rag-debug-explain">{{ragEval.result.explain}}</div>
+          <div class="rag-eval-list">
+            <div class="rag-eval-item" v-for="(item, index) in ragEvalItems()" :key="index" :class="{failed: !item.passed}">
+              <div class="rag-eval-item-head">
+                <strong>{{item.message}}</strong>
+                <span :class="{pass: item.passed}">{{item.passed ? '通过' : '未命中'}}</span>
+              </div>
+              <div class="rag-eval-meta">
+                <b>预期</b>
+                <code v-for="cat in item.expectedCategories" :key="cat">{{categoryName(cat)}}</code>
+              </div>
+              <div class="rag-eval-meta">
+                <b>命中</b>
+                <code v-for="cat in item.hitCategories" :key="cat">{{categoryName(cat)}}</code>
+                <em v-if="!item.hitCategories || !item.hitCategories.length">无</em>
+              </div>
+              <div class="rag-eval-top1" v-if="item.top1">
+                Top1：{{item.top1.title}} · {{categoryName(item.top1.category)}}<span v-if="item.top1.similarityScore !== undefined"> · 相似度 {{item.top1.similarityScore}}</span>
+              </div>
+              <div class="rag-eval-top1" v-else>Top1：暂无召回文档</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="knowledge-grid" v-if="knowledgeDocs.length">
         <div class="knowledge-card" v-for="doc in knowledgeDocs" :key="doc.docId || doc.id">
           <div class="knowledge-card-head">
@@ -736,6 +787,10 @@
       ragDebug: {
         message: "帮我设计一张周末秒杀券",
         intent: "voucher_plan",
+        loading: false,
+        result: null
+      },
+      ragEval: {
         loading: false,
         result: null
       },
@@ -1389,6 +1444,25 @@
       },
       ragDebugDocs() {
         return this.ragDebug.result && this.ragDebug.result.documents ? this.ragDebug.result.documents : [];
+      },
+      runRagEvaluation() {
+        this.ragEval.loading = true;
+        // 评测接口默认使用后端内置测试集。前端只负责触发和展示结果，避免把测试口径散落在页面代码里。
+        axios.post("/merchant-agent/knowledge-docs/evaluate", {limit: 3})
+          .then(({data}) => {
+            this.ragEval.result = data || {};
+            const failCount = this.ragEval.result.failCount || 0;
+            if (failCount > 0) {
+              this.$message.warning("评测完成，有 " + failCount + " 条用例需要优化");
+            } else {
+              this.$message.success("评测完成，当前测试集全部通过");
+            }
+          })
+          .catch(err => this.$message.error(err))
+          .finally(() => this.ragEval.loading = false);
+      },
+      ragEvalItems() {
+        return this.ragEval.result && this.ragEval.result.items ? this.ragEval.result.items : [];
       },
       metric(key) {
         return this.report.orderAnalysis && this.report.orderAnalysis[key] !== undefined ? this.report.orderAnalysis[key] : 0;
