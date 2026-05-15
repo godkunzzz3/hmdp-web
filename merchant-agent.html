@@ -358,9 +358,12 @@
               <strong>{{ragDebug.result.hitCount || 0}}</strong>
             </div>
             <div>
-              <span>业务意图</span>
-              <strong>{{ragDebug.result.intent}}</strong>
+              <span>质量闸门</span>
+              <strong :class="{semantic: ragDebug.result.qualityGate === 'passed'}">{{ragDebug.result.qualityGate || '未检测'}}</strong>
             </div>
+          </div>
+          <div class="rag-debug-explain" v-if="ragDebug.result.vectorMinSimilarity">
+            当前语义相似度阈值：{{ragDebug.result.vectorMinSimilarity}}。低于该阈值的知识不会进入 Prompt。
           </div>
           <div class="rag-debug-explain">{{ragDebug.result.explain}}</div>
           <div class="rag-list" v-if="ragDebugDocs().length">
@@ -373,6 +376,7 @@
                 <code>{{doc.retrievalMode || ragDebug.result.retrievalMode}}</code>
                 <b v-if="doc.similarityScore !== undefined">相似度 {{doc.similarityScore}}</b>
                 <b v-else>关键词兜底</b>
+                <em v-if="doc.qualityStatus">{{doc.qualityStatus}}</em>
               </div>
               <div class="rag-content">{{shortText(doc.content, 130)}}</div>
             </div>
