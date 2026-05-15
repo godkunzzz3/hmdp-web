@@ -110,6 +110,7 @@
               </div>
             </div>
           </div>
+          <div class="empty-state" v-if="blogs2.length === 0">暂无关注动态，先去关注几位达人吧</div>
         </div>
       </el-tab-pane>
     </el-tabs>
@@ -167,6 +168,13 @@
       isReachBottom: false,
     },
     created() {
+      const tab = util.getUrlParam("tab");
+      if (tab === "follow") {
+        this.activeName = "5";
+      }
+      if (tab === "orders") {
+        this.activeName = "2";
+      }
       this.queryUser();
     },
     methods: {
@@ -182,6 +190,7 @@
         if (clear) {
           this.params.offset = 0;
           this.params.minTime = new Date().getTime() + 1;
+          this.blogs2 = [];
         }
         let {minTime, offset: os} = this.params;
         axios.get("/blog/of/follow", {
@@ -191,7 +200,7 @@
             if (!data) {
               return;
             }
-            let {list, ...params} = data;
+            let {list = [], ...params} = data;
             list.forEach(b => b.img = b.images.split(",")[0])
             this.blogs2 = clear ? list : this.blogs2.concat(list);
             this.params = params;
@@ -210,6 +219,9 @@
             this.queryBlogs();
             // 查询用户订单
             this.queryOrders();
+            if (this.activeName === "5") {
+              this.queryBlogsOfFollow(true);
+            }
           })
           .catch(err => {
             location.href = "login.html"

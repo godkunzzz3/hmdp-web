@@ -115,7 +115,12 @@
             this.$message.error(err)
           })
       },
-      queryShops() {
+      queryShops(reset) {
+        if (reset) {
+          this.params.current = 1;
+          this.shops = [];
+          this.isReachBottom = false;
+        }
         axios.get("/shop/of/type", {
             params: this.params
           })
@@ -123,7 +128,7 @@
             if (!data) {
               return
             }
-            data.forEach(s => s.images = s.images.split(',')[0]);
+            data.forEach(s => s.images = (s.images || "").split(',')[0]);
             this.shops = this.shops.concat(data);
           })
           .catch(err => {
@@ -136,7 +141,7 @@
       },
       sortAndQuery(sortBy) {
         this.params.sortBy = sortBy;
-        this.queryShops();
+        this.queryShops(true);
       },
       goBack() {
         history.back();

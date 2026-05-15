@@ -62,7 +62,7 @@
         </div>
       </div>
       <div class="shop-list">
-        <div v-for="s in shops" class="shop-item" @click="selectShop(s)">
+        <div v-for="s in shops" :key="s.id" class="shop-item" @click="selectShop(s)">
           <div class="shop-name">{{s.name}}</div>
           <div>{{s.area}}</div>
         </div>
@@ -106,12 +106,35 @@
         this.showDialog = false;
       },
       submitBlog() {
+        const message = this.validateBlog();
+        if (message) {
+          this.$message.warning(message);
+          return;
+        }
         let {...data} = this.params;
         data.images = this.fileList.join(",");
         data.shopId = this.selectedShop.id;
         axios.post("/blog", data)
-          .then(resp => location.href = "/info.html")
+          .then(resp => {
+            this.$message.success("探店笔记已发布");
+            setTimeout(() => location.href = "/info.html", 300);
+          })
           .catch(this.$message.error)
+      },
+      validateBlog() {
+        if (!this.fileList.length) {
+          return "请至少上传一张探店图片";
+        }
+        if (!this.params.title || !this.params.title.trim()) {
+          return "请填写笔记标题";
+        }
+        if (!this.params.content || !this.params.content.trim()) {
+          return "请填写探店内容";
+        }
+        if (!this.selectedShop.id) {
+          return "请选择关联商户";
+        }
+        return "";
       },
       openFileDialog() {
         this.$refs.fileInput.click();

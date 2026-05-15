@@ -12,7 +12,7 @@
     .msg-title { font-size: 22px; font-weight: 800; }
     .msg-subtitle { margin-top: 6px; opacity: .86; }
     .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 12px; }
-    .quick-card { background: #fff; border-radius: 12px; padding: 14px 8px; text-align: center; box-shadow: 0 8px 22px rgba(31,35,41,.06); }
+    .quick-card { background: #fff; border-radius: 12px; padding: 14px 8px; text-align: center; box-shadow: 0 8px 22px rgba(31,35,41,.06); cursor: pointer; }
     .quick-card i { color: #ff6633; font-size: 24px; }
     .quick-card div { margin-top: 6px; font-weight: 700; }
     .msg-list { padding: 0 12px; }
@@ -31,9 +31,9 @@
     <div class="msg-subtitle">关注、点赞、系统通知都会在这里汇总。</div>
   </div>
   <div class="quick-grid">
-    <div class="quick-card" @click="toast('点赞通知')"><i class="el-icon-thumb"></i><div>点赞</div></div>
-    <div class="quick-card" @click="toast('评论通知')"><i class="el-icon-chat-dot-round"></i><div>评论</div></div>
-    <div class="quick-card" @click="toast('关注通知')"><i class="el-icon-user"></i><div>关注</div></div>
+    <div class="quick-card" @click="toLikes"><i class="el-icon-thumb"></i><div>点赞</div></div>
+    <div class="quick-card" @click="toComments"><i class="el-icon-chat-dot-round"></i><div>评论</div></div>
+    <div class="quick-card" @click="toFollows"><i class="el-icon-user"></i><div>关注</div></div>
   </div>
   <div class="msg-list">
     <div class="msg-card" v-for="m in messages" :key="m.id">
@@ -63,8 +63,17 @@
       ]
     },
     methods: {
-      toast(name) {
-        this.$message.info(name + "暂未接入真实消息表，当前为前端展示页");
+      toLikes() {
+        // 当前项目没有单独的点赞消息表，先跳到热门探店流，让用户能看到点赞相关内容。
+        location.href = "/index.html";
+      },
+      toComments() {
+        // 评论能力目前主要沉淀在探店笔记详情页，先引导用户去发布/查看笔记。
+        location.href = "/blog-edit.html";
+      },
+      toFollows() {
+        // 关注动态使用 Feed 流实现，个人页“关注”Tab 会调用 /blog/of/follow。
+        location.href = "/info.html?tab=follow";
       }
     }
   })
