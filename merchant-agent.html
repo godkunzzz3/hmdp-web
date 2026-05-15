@@ -399,24 +399,29 @@
         <div class="rag-eval-result" v-if="ragEval.result">
           <div class="rag-eval-score">
             <div>
-              <span>通过率</span>
-              <strong>{{ragEval.result.passRate || '0.00%'}}</strong>
+              <span>Top1 命中率</span>
+              <strong>{{ragEval.result.top1PassRate || '0.00%'}}</strong>
             </div>
             <div>
-              <span>通过 / 总数</span>
-              <strong>{{ragEval.result.passCount || 0}} / {{ragEval.result.total || 0}}</strong>
+              <span>TopK 命中率</span>
+              <strong>{{ragEval.result.topKPassRate || ragEval.result.passRate || '0.00%'}}</strong>
             </div>
             <div>
-              <span>TopK</span>
-              <strong>{{ragEval.result.limit || 3}}</strong>
+              <span>无可靠召回</span>
+              <strong>{{ragEval.result.noReliableHitCount || 0}}</strong>
             </div>
+          </div>
+          <div class="rag-eval-mini">
+            <span>TopK={{ragEval.result.limit || 3}}</span>
+            <span>Top1 {{ragEval.result.top1PassCount || 0}} / {{ragEval.result.total || 0}}</span>
+            <span>TopK {{ragEval.result.topKPassCount || ragEval.result.passCount || 0}} / {{ragEval.result.total || 0}}</span>
           </div>
           <div class="rag-debug-explain">{{ragEval.result.explain}}</div>
           <div class="rag-eval-list">
             <div class="rag-eval-item" v-for="(item, index) in ragEvalItems()" :key="index" :class="{failed: !item.passed}">
               <div class="rag-eval-item-head">
                 <strong>{{item.message}}</strong>
-                <span :class="{pass: item.passed}">{{item.passed ? '通过' : '未命中'}}</span>
+                <span :class="{pass: item.top1Passed}">{{evalBadge(item)}}</span>
               </div>
               <div class="rag-eval-meta">
                 <b>预期</b>
@@ -431,6 +436,7 @@
                 Top1：{{item.top1.title}} · {{categoryName(item.top1.category)}}<span v-if="item.top1.similarityScore !== undefined"> · 相似度 {{item.top1.similarityScore}}</span>
               </div>
               <div class="rag-eval-top1" v-else>Top1：暂无召回文档</div>
+              <div class="rag-eval-top1">{{item.reason}}</div>
             </div>
           </div>
         </div>
@@ -1467,6 +1473,13 @@
       },
       ragEvalItems() {
         return this.ragEval.result && this.ragEval.result.items ? this.ragEval.result.items : [];
+      },
+      evalBadge(item) {
+        if (!item) return "未命中";
+        if (item.top1Passed) return "Top1 命中";
+        if (item.topKPassed || item.passed) return "TopK 命中";
+        if (item.noReliableHit) return "无可靠召回";
+        return "未命中";
       },
       metric(key) {
         return this.report.orderAnalysis && this.report.orderAnalysis[key] !== undefined ? this.report.orderAnalysis[key] : 0;
