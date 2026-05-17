@@ -873,6 +873,13 @@ body {
   align-items: center;
 }
 
+.rag-eval-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .rag-eval-result {
   margin-top: 14px;
   padding-top: 14px;
@@ -999,6 +1006,120 @@ body {
   color: #68707c;
   font-size: 12px;
   line-height: 18px;
+}
+
+.rag-eval-history {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #edf0f4;
+}
+
+.rag-history-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.rag-history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.rag-history-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.rag-history-main,
+.rag-history-side {
+  display: grid;
+  gap: 4px;
+}
+
+.rag-history-main strong {
+  color: #20242a;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.rag-history-main span,
+.rag-history-main em,
+.rag-history-side span,
+.rag-history-side time {
+  color: #8a929f;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.rag-history-side {
+  text-align: right;
+}
+
+.empty-block.compact {
+  padding: 16px;
+  font-size: 12px;
+}
+
+.dialog-help {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f7f9fc;
+  color: #68707c;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.rag-case-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.rag-case-list {
+  display: grid;
+  gap: 12px;
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.rag-case-item {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 34px;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.rag-case-index {
+  padding-top: 8px;
+  color: #ff6633;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.rag-case-body {
+  display: grid;
+  gap: 10px;
+}
+
+.rag-case-row {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 10px;
 }
 
 .rag-score-row {
@@ -1816,6 +1937,15 @@ body {
   .rag-eval-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .rag-eval-actions {
+    flex-wrap: wrap;
+  }
+
+  .rag-case-item,
+  .rag-case-row {
+    grid-template-columns: 1fr;
   }
 
   .row-actions {

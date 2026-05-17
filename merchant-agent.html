@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
   <title>商家运营 Agent</title>
   <link rel="stylesheet" href="./css/element.css">
-  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260512-rag-eval">
+  <link rel="stylesheet" href="./css/merchant-agent.css?v=20260516-rag-eval-cases">
 </head>
 <body>
 <div id="merchant-app">
@@ -389,11 +389,14 @@
         <div class="rag-eval-head">
           <div>
             <div class="mini-title">RAG 批量评测</div>
-            <div class="chat-sub">用固定测试集检查 TopK 是否命中预期分类，避免每次只凭感觉判断召回效果。</div>
+            <div class="chat-sub">用默认或自定义测试集检查 TopK 是否命中预期分类，避免每次只凭感觉判断召回效果。</div>
           </div>
-          <el-button size="small" type="primary" icon="el-icon-data-analysis" :loading="ragEval.loading" @click="runRagEvaluation">
-            运行评测
-          </el-button>
+          <div class="rag-eval-actions">
+            <el-button size="small" icon="el-icon-edit-outline" @click="openRagEvalCases">编辑用例</el-button>
+            <el-button size="small" type="primary" icon="el-icon-data-analysis" :loading="ragEval.loading" @click="runRagEvaluation">
+              运行评测
+            </el-button>
+          </div>
         </div>
 
         <div class="rag-eval-result" v-if="ragEval.result">
@@ -412,6 +415,7 @@
             </div>
           </div>
           <div class="rag-eval-mini">
+            <span>{{ragEvalCaseSource()}}</span>
             <span>TopK={{ragEval.result.limit || 3}}</span>
             <span>Top1 {{ragEval.result.top1PassCount || 0}} / {{ragEval.result.total || 0}}</span>
             <span>TopK {{ragEval.result.topKPassCount || ragEval.result.passCount || 0}} / {{ragEval.result.total || 0}}</span>
@@ -439,6 +443,30 @@
               <div class="rag-eval-top1">{{item.reason}}</div>
             </div>
           </div>
+        </div>
+
+        <div class="rag-eval-history">
+          <div class="rag-history-head">
+            <div>
+              <div class="mini-title">最近评测历史</div>
+              <div class="chat-sub">记录每次 RAG 回归测试结果，方便对比知识库和召回策略是否变好。</div>
+            </div>
+            <el-button size="mini" icon="el-icon-refresh" :loading="ragEval.historyLoading" @click="loadRagEvalHistory">刷新</el-button>
+          </div>
+          <div class="rag-history-list" v-if="ragEvalHistoryItems().length">
+            <div class="rag-history-item" v-for="run in ragEvalHistoryItems()" :key="run.runId">
+              <div class="rag-history-main">
+                <strong>TopK {{run.topKPassRate || '0.00%'}}</strong>
+                <span>Top1 {{run.top1PassRate || '0.00%'}}</span>
+                <em>{{ragEvalRunSource(run)}} · {{run.total || 0}} 条</em>
+              </div>
+              <div class="rag-history-side">
+                <span>无召回 {{run.noReliableHitCount || 0}}</span>
+                <time>{{run.createTime || '-'}}</time>
+              </div>
+            </div>
+          </div>
+          <div class="empty-block compact" v-else>暂无评测历史，运行一次批量评测后会在这里留下记录。</div>
         </div>
       </div>
 
@@ -645,6 +673,43 @@
     </span>
   </el-dialog>
 
+  <el-dialog title="RAG 评测用例" :visible.sync="ragEvalDialogVisible" width="760px" custom-class="knowledge-dialog rag-eval-dialog">
+    <div class="dialog-help">
+      每条用例代表一个商家问题。期望分类用于判断召回结果是否命中，TopK 中命中任意一个期望分类就算通过。
+    </div>
+    <div class="rag-case-toolbar">
+      <el-switch v-model="ragEval.useCustomCases" active-text="使用当前编辑用例" inactive-text="使用已保存/默认用例"></el-switch>
+      <el-input-number v-model="ragEval.limit" :min="1" :max="8" size="small" controls-position="right"></el-input-number>
+    </div>
+    <div class="rag-case-list" v-if="ragEval.useCustomCases">
+      <div class="rag-case-item" v-for="(item, index) in ragEval.cases" :key="index">
+        <div class="rag-case-index">#{{index + 1}}</div>
+        <div class="rag-case-body">
+          <el-input v-model="item.message" maxlength="80" show-word-limit placeholder="例如：帮我设计一张周末秒杀券"></el-input>
+          <div class="rag-case-row">
+            <el-select v-model="item.intent" placeholder="业务意图">
+              <el-option label="活动/优惠券方案" value="voucher_plan"></el-option>
+              <el-option label="订单分析" value="order_analysis"></el-option>
+              <el-option label="评价分析" value="review_analysis"></el-option>
+              <el-option label="普通运营咨询" value="operation_chat"></el-option>
+            </el-select>
+            <el-select v-model="item.expectedCategories" multiple collapse-tags placeholder="期望知识分类">
+              <el-option v-for="cat in knowledgeCategories" :key="cat.value" :label="cat.label" :value="cat.value"></el-option>
+            </el-select>
+          </div>
+        </div>
+        <el-button icon="el-icon-delete" circle size="mini" @click="removeRagEvalCase(index)" :disabled="ragEval.cases.length <= 1"></el-button>
+      </div>
+    </div>
+    <div class="empty-block" v-else>当前会使用后端默认评测集，适合快速检查基础召回质量。</div>
+    <span slot="footer" class="dialog-footer">
+      <el-button @click="resetRagEvalCases">恢复示例用例</el-button>
+      <el-button @click="addRagEvalCase" :disabled="ragEval.cases.length >= 20">新增用例</el-button>
+      <el-button :loading="ragEval.saving" @click="saveRagEvalCases">保存用例</el-button>
+      <el-button type="primary" @click="ragEvalDialogVisible = false">完成</el-button>
+    </span>
+  </el-dialog>
+
   <el-dialog title="活动效果复盘" :visible.sync="effectDialogVisible" width="620px" custom-class="effect-dialog">
     <div v-if="effectData" class="effect-panel">
       <div class="effect-head">
@@ -751,6 +816,7 @@
       effectDialogVisible: false,
       knowledgeDialogVisible: false,
       knowledgeUploadVisible: false,
+      ragEvalDialogVisible: false,
       editSaving: false,
       knowledgeSaving: false,
       knowledgeUploading: false,
@@ -802,7 +868,20 @@
       },
       ragEval: {
         loading: false,
-        result: null
+        saving: false,
+        historyLoading: false,
+        casesLoaded: false,
+        result: null,
+        history: [],
+        useCustomCases: false,
+        limit: 3,
+        cases: [
+          {message: "帮我设计一张周末秒杀券", intent: "voucher_plan", expectedCategories: ["seckill_rule", "cost_rule"]},
+          {message: "优惠券折扣不要太低但要吸引人", intent: "voucher_plan", expectedCategories: ["voucher_rule", "cost_rule"]},
+          {message: "最近订单少应该先检查什么", intent: "order_analysis", expectedCategories: ["cost_rule", "voucher_rule"]},
+          {message: "KTV评价说排队久怎么办", intent: "review_analysis", expectedCategories: ["industry_case"]},
+          {message: "哪些操作必须人工确认", intent: "operation_chat", expectedCategories: ["risk_rule"]}
+        ]
       },
       editingDraftId: "",
       editForm: {
@@ -851,6 +930,8 @@
             this.loadDrafts();
             this.loadActions();
             this.loadKnowledgeDocs();
+            this.loadRagEvalCases();
+            this.loadRagEvalHistory();
           })
           .catch(err => this.$message.error(err));
       },
@@ -906,6 +987,35 @@
           .catch(err => this.$message.error(err))
           .finally(() => this.knowledgeLoading = false);
       },
+      loadRagEvalCases() {
+        axios.get("/merchant-agent/knowledge-docs/evaluate-cases")
+          .then(({data}) => {
+            const rows = data && data.cases ? data.cases : [];
+            if (rows.length) {
+              this.ragEval.cases = rows.map(item => ({
+                message: item.message || "",
+                intent: item.intent || "operation_chat",
+                expectedCategories: item.expectedCategories || []
+              }));
+              this.ragEval.useCustomCases = true;
+            }
+            this.ragEval.casesLoaded = true;
+          })
+          .catch(() => {
+            // 评测用例加载失败不影响商家工作台主流程，保留页面内置示例用例即可。
+            this.ragEval.casesLoaded = true;
+          });
+      },
+      loadRagEvalHistory() {
+        this.ragEval.historyLoading = true;
+        axios.get("/merchant-agent/knowledge-docs/evaluate-runs", {params: {limit: 6}})
+          .then(({data}) => this.ragEval.history = data || [])
+          .catch(() => {
+            // 历史记录属于学习调试信息，加载失败不阻断商家运营台主功能。
+            this.ragEval.history = [];
+          })
+          .finally(() => this.ragEval.historyLoading = false);
+      },
       switchView(view) {
         this.activeView = view;
         this.pageMessage = "";
@@ -913,7 +1023,10 @@
         if (view === "agentActions") this.loadSuggestions();
         if (view === "drafts") this.loadDrafts();
         if (view === "actions") this.loadActions();
-        if (view === "knowledge") this.loadKnowledgeDocs();
+        if (view === "knowledge") {
+          this.loadKnowledgeDocs();
+          this.loadRagEvalHistory();
+        }
       },
       selectSession(session) {
         this.activeSessionId = session.sessionId;
@@ -1456,11 +1569,21 @@
         return this.ragDebug.result && this.ragDebug.result.documents ? this.ragDebug.result.documents : [];
       },
       runRagEvaluation() {
+        const payload = {limit: this.ragEval.limit || 3};
+        if (this.ragEval.useCustomCases) {
+          const cases = this.normalizedRagEvalCases();
+          if (!cases.length) {
+            this.$message.warning("请至少保留一条完整的评测用例");
+            return;
+          }
+          payload.cases = cases;
+        }
         this.ragEval.loading = true;
-        // 评测接口默认使用后端内置测试集。前端只负责触发和展示结果，避免把测试口径散落在页面代码里。
-        axios.post("/merchant-agent/knowledge-docs/evaluate", {limit: 3})
+        // 评测接口不调用大模型，只验证“商家问题 -> 知识分类”的召回质量，适合做 RAG 策略回归测试。
+        axios.post("/merchant-agent/knowledge-docs/evaluate", payload)
           .then(({data}) => {
             this.ragEval.result = data || {};
+            this.loadRagEvalHistory();
             const failCount = this.ragEval.result.failCount || 0;
             if (failCount > 0) {
               this.$message.warning("评测完成，有 " + failCount + " 条用例需要优化");
@@ -1471,8 +1594,91 @@
           .catch(err => this.$message.error(err))
           .finally(() => this.ragEval.loading = false);
       },
+      openRagEvalCases() {
+        if (!this.ragEval.casesLoaded) {
+          this.loadRagEvalCases();
+        }
+        this.ragEvalDialogVisible = true;
+      },
+      addRagEvalCase() {
+        if (this.ragEval.cases.length >= 20) {
+          this.$message.warning("单次最多配置20条评测用例");
+          return;
+        }
+        this.ragEval.useCustomCases = true;
+        this.ragEval.cases.push({
+          message: "",
+          intent: "operation_chat",
+          expectedCategories: []
+        });
+      },
+      removeRagEvalCase(index) {
+        this.ragEval.cases.splice(index, 1);
+        if (!this.ragEval.cases.length) {
+          this.addRagEvalCase();
+        }
+      },
+      resetRagEvalCases() {
+        this.ragEval.cases = [
+          {message: "帮我设计一张周末秒杀券", intent: "voucher_plan", expectedCategories: ["seckill_rule", "cost_rule"]},
+          {message: "优惠券折扣不要太低但要吸引人", intent: "voucher_plan", expectedCategories: ["voucher_rule", "cost_rule"]},
+          {message: "最近订单少应该先检查什么", intent: "order_analysis", expectedCategories: ["cost_rule", "voucher_rule"]},
+          {message: "KTV评价说排队久怎么办", intent: "review_analysis", expectedCategories: ["industry_case"]},
+          {message: "哪些操作必须人工确认", intent: "operation_chat", expectedCategories: ["risk_rule"]}
+        ];
+        this.ragEval.useCustomCases = true;
+        this.$message.success("已恢复示例评测用例");
+      },
+      saveRagEvalCases() {
+        const cases = this.normalizedRagEvalCases();
+        if (!cases.length) {
+          this.$message.warning("请至少保留一条完整的评测用例");
+          return;
+        }
+        this.ragEval.saving = true;
+        axios.put("/merchant-agent/knowledge-docs/evaluate-cases", {cases})
+          .then(({data}) => {
+            const rows = data && data.cases ? data.cases : cases;
+            this.ragEval.cases = rows.map(item => ({
+              message: item.message || "",
+              intent: item.intent || "operation_chat",
+              expectedCategories: item.expectedCategories || []
+            }));
+            this.ragEval.useCustomCases = true;
+            this.ragEval.casesLoaded = true;
+            this.$message.success("评测用例已保存");
+          })
+          .catch(err => this.$message.error(err))
+          .finally(() => this.ragEval.saving = false);
+      },
+      normalizedRagEvalCases() {
+        return this.ragEval.cases
+          .map(item => ({
+            message: (item.message || "").trim(),
+            intent: item.intent || "operation_chat",
+            expectedCategories: (item.expectedCategories || []).filter(Boolean)
+          }))
+          .filter(item => item.message && item.expectedCategories.length);
+      },
+      ragEvalCaseSource() {
+        if (!this.ragEval.result) return "未评测";
+        if (this.ragEval.result.caseSource === "custom") return "自定义用例";
+        if (this.ragEval.result.caseSource === "persisted") return "已保存用例";
+        if (this.ragEval.result.caseSource === "default_fallback") return "默认兜底用例";
+        return "默认用例";
+      },
       ragEvalItems() {
         return this.ragEval.result && this.ragEval.result.items ? this.ragEval.result.items : [];
+      },
+      ragEvalHistoryItems() {
+        return this.ragEval.history || [];
+      },
+      ragEvalRunSource(run) {
+        if (!run) return "未知来源";
+        if (run.caseSource === "custom") return "自定义";
+        if (run.caseSource === "persisted") return "已保存";
+        if (run.caseSource === "default_fallback") return "默认兜底";
+        return "默认";
       },
       evalBadge(item) {
         if (!item) return "未命中";
