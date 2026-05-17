@@ -1022,6 +1022,19 @@ body {
   margin-bottom: 10px;
 }
 
+.rag-trend {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #edf0f4;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fbfcfe 0%, #fff 100%);
+}
+
+.rag-echarts {
+  width: 100%;
+  height: 230px;
+}
+
 .rag-history-list {
   display: grid;
   gap: 8px;
