@@ -376,8 +376,11 @@
                 <code>{{doc.retrievalMode || ragDebug.result.retrievalMode}}</code>
                 <b v-if="doc.similarityScore !== undefined">相似度 {{doc.similarityScore}}</b>
                 <b v-else>关键词兜底</b>
+                <b v-if="doc.rerankScore !== undefined">Rerank {{doc.rerankScore}}</b>
+                <b v-if="doc.originalRank && doc.rerankRank">排名 {{doc.originalRank}} → {{doc.rerankRank}}</b>
                 <em v-if="doc.qualityStatus">{{doc.qualityStatus}}</em>
               </div>
+              <div class="rag-rerank-reason" v-if="doc.rerankReason">{{doc.rerankReason}}</div>
               <div class="rag-content">{{shortText(doc.content, 130)}}</div>
             </div>
           </div>
@@ -420,6 +423,16 @@
             <span>Top1 {{ragEval.result.top1PassCount || 0}} / {{ragEval.result.total || 0}}</span>
             <span>TopK {{ragEval.result.topKPassCount || ragEval.result.passCount || 0}} / {{ragEval.result.total || 0}}</span>
           </div>
+          <div class="rag-diagnosis" v-if="ragEvalDiagnosis()">
+            <div class="rag-diagnosis-head">
+              <span :class="diagnosisLevelClass(ragEvalDiagnosis().level)">{{ragEvalDiagnosis().level || 'INFO'}}</span>
+              <strong>{{ragEvalDiagnosis().title}}</strong>
+            </div>
+            <p>{{ragEvalDiagnosis().summary}}</p>
+            <ul>
+              <li v-for="(tip, index) in ragEvalDiagnosis().recommendations" :key="index">{{tip}}</li>
+            </ul>
+          </div>
           <div class="rag-debug-explain">{{ragEval.result.explain}}</div>
           <div class="rag-eval-list">
             <div class="rag-eval-item" v-for="(item, index) in ragEvalItems()" :key="index" :class="{failed: !item.passed}">
@@ -440,6 +453,9 @@
                 Top1：{{item.top1.title}} · {{categoryName(item.top1.category)}}<span v-if="item.top1.similarityScore !== undefined"> · 相似度 {{item.top1.similarityScore}}</span>
               </div>
               <div class="rag-eval-top1" v-else>Top1：暂无召回文档</div>
+              <div class="rag-case-diagnosis" v-if="item.diagnosis">
+                {{item.diagnosis.title}}：{{item.diagnosis.advice}}
+              </div>
               <div class="rag-eval-top1">{{item.reason}}</div>
             </div>
           </div>
@@ -466,6 +482,7 @@
               <div class="rag-history-side">
                 <span>无召回 {{run.noReliableHitCount || 0}}</span>
                 <time>{{run.createTime || '-'}}</time>
+                <button @click="openRagEvalRunDetail(run)">查看详情</button>
               </div>
             </div>
           </div>
@@ -713,6 +730,65 @@
     </span>
   </el-dialog>
 
+  <el-dialog title="RAG 评测详情" :visible.sync="ragRunDetailVisible" width="860px" custom-class="knowledge-dialog rag-run-dialog">
+    <div v-loading="ragEval.detailLoading">
+      <div class="rag-run-summary" v-if="ragEval.detail && ragEval.detail.summary">
+        <div>
+          <span>Top1 命中率</span>
+          <strong>{{ragEval.detail.summary.top1PassRate || '0.00%'}}</strong>
+        </div>
+        <div>
+          <span>TopK 命中率</span>
+          <strong>{{ragEval.detail.summary.topKPassRate || '0.00%'}}</strong>
+        </div>
+        <div>
+          <span>无可靠召回</span>
+          <strong>{{ragEval.detail.summary.noReliableHitCount || 0}}</strong>
+        </div>
+        <div>
+          <span>运行时间</span>
+          <strong>{{ragEval.detail.summary.createTime || '-'}}</strong>
+        </div>
+      </div>
+      <div class="rag-run-list" v-if="ragEvalRunDetailItems().length">
+        <div class="rag-run-item" v-for="(item, index) in ragEvalRunDetailItems()" :key="index" :class="{failed: !item.passed}">
+          <div class="rag-run-item-head">
+            <strong>{{index + 1}}. {{item.message}}</strong>
+            <span :class="{pass: item.top1Passed}">{{evalBadge(item)}}</span>
+          </div>
+          <div class="rag-eval-meta">
+            <b>预期分类</b>
+            <code v-for="cat in item.expectedCategories" :key="cat">{{categoryName(cat)}}</code>
+          </div>
+          <div class="rag-eval-meta">
+            <b>命中分类</b>
+            <code v-for="cat in item.hitCategories" :key="cat">{{categoryName(cat)}}</code>
+            <em v-if="!item.hitCategories || !item.hitCategories.length">无</em>
+          </div>
+          <div class="rag-run-topk" v-if="item.topK && item.topK.length">
+            <div class="rag-run-doc" v-for="doc in item.topK" :key="doc.docId || doc.id">
+              <strong>{{doc.title}}</strong>
+              <span>{{categoryName(doc.category)}} · {{doc.retrievalMode || item.retrievalMode}}</span>
+              <em v-if="doc.rerankScore !== undefined">Rerank {{doc.rerankScore}}</em>
+              <small v-if="doc.similarityScore !== undefined">相似度 {{doc.similarityScore}}</small>
+              <small v-if="doc.originalRank && doc.rerankRank">排名 {{doc.originalRank}} → {{doc.rerankRank}}</small>
+              <p v-if="doc.rerankReason">{{doc.rerankReason}}</p>
+            </div>
+          </div>
+          <div class="rag-eval-top1" v-else>本用例没有可靠召回文档。</div>
+          <div class="rag-case-diagnosis" v-if="item.diagnosis">
+            {{item.diagnosis.title}}：{{item.diagnosis.advice}}
+          </div>
+          <div class="rag-eval-top1">{{item.reason}}</div>
+        </div>
+      </div>
+      <div class="empty-block compact" v-else>暂无评测详情。</div>
+    </div>
+    <span slot="footer" class="dialog-footer">
+      <el-button type="primary" @click="ragRunDetailVisible = false">关闭</el-button>
+    </span>
+  </el-dialog>
+
   <el-dialog title="活动效果复盘" :visible.sync="effectDialogVisible" width="620px" custom-class="effect-dialog">
     <div v-if="effectData" class="effect-panel">
       <div class="effect-head">
@@ -821,6 +897,7 @@
       knowledgeDialogVisible: false,
       knowledgeUploadVisible: false,
       ragEvalDialogVisible: false,
+      ragRunDetailVisible: false,
       editSaving: false,
       knowledgeSaving: false,
       knowledgeUploading: false,
@@ -874,8 +951,10 @@
         loading: false,
         saving: false,
         historyLoading: false,
+        detailLoading: false,
         casesLoaded: false,
         result: null,
+        detail: null,
         history: [],
         useCustomCases: false,
         limit: 3,
@@ -1687,8 +1766,28 @@
       ragEvalItems() {
         return this.ragEval.result && this.ragEval.result.items ? this.ragEval.result.items : [];
       },
+      ragEvalDiagnosis() {
+        return this.ragEval.result && this.ragEval.result.diagnosis ? this.ragEval.result.diagnosis : null;
+      },
       ragEvalHistoryItems() {
         return this.ragEval.history || [];
+      },
+      ragEvalRunDetailItems() {
+        const snapshot = this.ragEval.detail && this.ragEval.detail.snapshot ? this.ragEval.detail.snapshot : {};
+        return snapshot.items || [];
+      },
+      openRagEvalRunDetail(run) {
+        if (!run || !run.runId) {
+          this.$message.warning("评测运行记录缺少id");
+          return;
+        }
+        this.ragRunDetailVisible = true;
+        this.ragEval.detailLoading = true;
+        this.ragEval.detail = null;
+        axios.get("/merchant-agent/knowledge-docs/evaluate-runs/" + run.runId)
+          .then(({data}) => this.ragEval.detail = data || {})
+          .catch(err => this.$message.error(err))
+          .finally(() => this.ragEval.detailLoading = false);
       },
       ragEvalTrendItems() {
         // 后端按创建时间倒序返回，图表按时间正序展示，更符合“从左到右看变化”的阅读习惯。
@@ -1700,6 +1799,11 @@
         if (run.caseSource === "persisted") return "已保存";
         if (run.caseSource === "default_fallback") return "默认兜底";
         return "默认";
+      },
+      diagnosisLevelClass(level) {
+        if (level === "GOOD") return "good";
+        if (level === "RISK") return "risk";
+        return "warn";
       },
       percentHeight(value) {
         const percent = this.parsePercent(value);
