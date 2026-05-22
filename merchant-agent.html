@@ -611,21 +611,21 @@
   <el-dialog title="编辑活动草稿" :visible.sync="editDialogVisible" width="560px" custom-class="draft-edit-dialog">
     <el-form label-position="top" class="draft-edit-form">
       <el-form-item label="活动标题">
-        <el-input v-model="editForm.title" maxlength="80" show-word-limit></el-input>
+        <el-input v-model="editForm.title" :maxlength="draftLimits.titleMax" show-word-limit></el-input>
       </el-form-item>
       <el-form-item label="副标题">
-        <el-input v-model="editForm.subTitle" maxlength="120" show-word-limit></el-input>
+        <el-input v-model="editForm.subTitle" :maxlength="draftLimits.subTitleMax" show-word-limit></el-input>
       </el-form-item>
       <div class="form-grid">
         <el-form-item label="售价（元）">
-          <el-input-number v-model="editForm.payYuan" :min="0.01" :precision="2" :step="1" controls-position="right"></el-input-number>
+          <el-input-number v-model="editForm.payYuan" :min="0.01" :max="draftLimits.maxAmountYuan" :precision="2" :step="1" controls-position="right"></el-input-number>
         </el-form-item>
         <el-form-item label="抵扣（元）">
-          <el-input-number v-model="editForm.actualYuan" :min="0.01" :precision="2" :step="1" controls-position="right"></el-input-number>
+          <el-input-number v-model="editForm.actualYuan" :min="0.01" :max="draftLimits.maxAmountYuan" :precision="2" :step="1" controls-position="right"></el-input-number>
         </el-form-item>
       </div>
       <el-form-item label="秒杀库存" v-if="editForm.draftType === 'seckill'">
-        <el-input-number v-model="editForm.stock" :min="1" :step="1" controls-position="right"></el-input-number>
+        <el-input-number v-model="editForm.stock" :min="1" :max="draftLimits.maxSeckillStock" :step="1" controls-position="right"></el-input-number>
       </el-form-item>
       <div class="form-grid">
         <el-form-item label="开始时间">
@@ -636,7 +636,7 @@
         </el-form-item>
       </div>
       <el-form-item label="使用规则">
-        <el-input v-model="editForm.rules" type="textarea" :rows="4"></el-input>
+        <el-input v-model="editForm.rules" type="textarea" :rows="4" :maxlength="draftLimits.rulesMax" show-word-limit></el-input>
       </el-form-item>
     </el-form>
     <span slot="footer" class="dialog-footer">
@@ -977,6 +977,16 @@
         beginTime: "",
         endTime: "",
         rules: ""
+      },
+      draftLimits: {
+        titleMax: 128,
+        subTitleMax: 120,
+        rulesMax: 1024,
+        maxAmountYuan: 10000,
+        maxSeckillStock: 10000,
+        maxVoucherDays: 180,
+        maxSeckillDays: 7,
+        maxBeginAfterDays: 365
       }
     },
     computed: {
@@ -999,6 +1009,19 @@
       }
     },
     methods: {
+      apiErrorMessage(err, fallback) {
+        if (!err) return fallback || "操作失败，请稍后重试";
+        if (typeof err === "string") return err;
+        if (err.errorMsg) return err.errorMsg;
+        if (err.message) return err.message;
+        if (err.response && err.response.data && err.response.data.errorMsg) {
+          return err.response.data.errorMsg;
+        }
+        return fallback || "操作失败，请稍后重试";
+      },
+      showApiError(err, fallback) {
+        this.$message.error(this.apiErrorMessage(err, fallback));
+      },
       ensureLogin() {
         const token = sessionStorage.getItem("token");
         if (!token) {
@@ -1282,7 +1305,7 @@
               this.$nextTick(() => this.editDraft(data));
             }
           })
-          .catch(err => this.$message.error(err))
+          .catch(err => this.showApiError(err, "活动草稿生成失败，请检查建议是否仍可执行"))
           .finally(() => this.creatingSuggestionId = "");
       },
       resolveSuggestionId() {
@@ -1388,12 +1411,24 @@
             this.loadDrafts();
             this.loadActions();
           })
-          .catch(err => this.$message.error(err))
+          .catch(err => this.showApiError(err, "草稿保存失败，请检查活动参数"))
           .finally(() => this.editSaving = false);
       },
       validateEditForm() {
-        if (!this.editForm.title || !this.editForm.title.trim()) {
+        const title = (this.editForm.title || "").trim();
+        const subTitle = (this.editForm.subTitle || "").trim();
+        const rules = (this.editForm.rules || "").trim();
+        if (!title) {
           return "活动标题不能为空";
+        }
+        if (title.length > this.draftLimits.titleMax) {
+          return "活动标题不能超过" + this.draftLimits.titleMax + "个字符";
+        }
+        if (subTitle.length > this.draftLimits.subTitleMax) {
+          return "活动副标题不能超过" + this.draftLimits.subTitleMax + "个字符";
+        }
+        if (rules.length > this.draftLimits.rulesMax) {
+          return "活动规则不能超过" + this.draftLimits.rulesMax + "个字符";
         }
         if (!this.editForm.payYuan || this.editForm.payYuan <= 0) {
           return "售价必须大于0";
@@ -1401,17 +1436,33 @@
         if (!this.editForm.actualYuan || this.editForm.actualYuan <= 0) {
           return "抵扣金额必须大于0";
         }
+        if (this.editForm.payYuan > this.draftLimits.maxAmountYuan || this.editForm.actualYuan > this.draftLimits.maxAmountYuan) {
+          return "活动金额不能超过" + this.draftLimits.maxAmountYuan + "元";
+        }
         if (this.yuanToCent(this.editForm.payYuan) >= this.yuanToCent(this.editForm.actualYuan)) {
           return "售价必须小于抵扣金额";
         }
         if (this.editForm.draftType === "seckill" && (!this.editForm.stock || this.editForm.stock <= 0)) {
           return "秒杀库存必须大于0";
         }
+        if (this.editForm.draftType === "seckill" && this.editForm.stock > this.draftLimits.maxSeckillStock) {
+          return "秒杀库存不能超过" + this.draftLimits.maxSeckillStock + "张";
+        }
         if (!this.editForm.beginTime || !this.editForm.endTime) {
           return "活动时间不能为空";
         }
-        if (new Date(this.editForm.beginTime).getTime() >= new Date(this.editForm.endTime).getTime()) {
+        const begin = new Date(this.editForm.beginTime).getTime();
+        const end = new Date(this.editForm.endTime).getTime();
+        if (begin >= end) {
           return "开始时间必须早于结束时间";
+        }
+        const maxBegin = Date.now() + this.draftLimits.maxBeginAfterDays * 24 * 60 * 60 * 1000;
+        if (begin > maxBegin) {
+          return "活动开始时间不能超过一年后";
+        }
+        const maxDays = this.editForm.draftType === "seckill" ? this.draftLimits.maxSeckillDays : this.draftLimits.maxVoucherDays;
+        if (end - begin > maxDays * 24 * 60 * 60 * 1000) {
+          return (this.editForm.draftType === "seckill" ? "秒杀活动" : "普通代金券") + "有效期不能超过" + maxDays + "天";
         }
         return "";
       },
@@ -1437,7 +1488,7 @@
           this.loadDrafts();
           this.loadActions();
         }).catch(err => {
-          if (err !== "cancel") this.$message.error(err);
+          if (err !== "cancel" && err !== "close") this.showApiError(err, "活动创建失败，请检查草稿参数");
         }).finally(() => this.confirmingDraftId = "");
       },
       openEffect(draft) {
