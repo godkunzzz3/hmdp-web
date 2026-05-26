@@ -59,9 +59,15 @@
         <div class="session-card" :class="{active: activeSessionId === s.sessionId}" v-for="s in sessions" :key="s.sessionId" @click="selectSession(s)">
           <div class="session-card-head">
             <div class="session-card-title">{{s.title}}</div>
-            <button type="button" class="session-delete" title="删除会话" @click.stop="deleteSession(s)" :disabled="deletingSessionId === s.sessionId">
-              <i class="el-icon-delete"></i>
-            </button>
+            <el-dropdown trigger="click" placement="bottom-end" @command="handleSessionCommand(s, $event)" @click.native.stop>
+              <button type="button" class="session-more" title="会话操作" @click.stop>
+                <i class="el-icon-more"></i>
+              </button>
+              <el-dropdown-menu slot="dropdown" class="session-menu">
+                <el-dropdown-item command="rename"><i class="el-icon-edit"></i>重命名</el-dropdown-item>
+                <el-dropdown-item command="delete" divided class="danger"><i class="el-icon-delete"></i>删除</el-dropdown-item>
+              </el-dropdown-menu>
+            </el-dropdown>
           </div>
           <div class="session-card-meta">{{s.sceneName}} · {{s.messageCount}} 条消息</div>
         </div>
@@ -908,6 +914,7 @@
       knowledgeLoading: false,
       creatingSuggestionId: "",
       deletingSessionId: "",
+      renamingSessionId: "",
       deletingSuggestionId: "",
       deletingDraftId: "",
       clearingDrafts: false,
@@ -1183,6 +1190,38 @@
             }
           })
           .catch(err => this.$message.error(err));
+      },
+      handleSessionCommand(session, command) {
+        if (command === "rename") {
+          this.renameSession(session);
+          return;
+        }
+        if (command === "delete") {
+          this.deleteSession(session);
+        }
+      },
+      renameSession(session) {
+        if (!session) return;
+        this.$prompt("给这条历史会话起一个更好记的名字", "重命名会话", {
+          confirmButtonText: "保存",
+          cancelButtonText: "取消",
+          inputValue: session.title || "",
+          inputPattern: /^.{1,40}$/,
+          inputErrorMessage: "标题不能为空，且不能超过40个字符"
+        }).then(({value}) => {
+          const title = (value || "").trim();
+          this.renamingSessionId = session.sessionId;
+          return axios.put("/merchant-agent/sessions/" + session.sessionId, {title});
+        }).then(({data}) => {
+          this.$message.success("会话已重命名");
+          const target = this.sessions.find(item => item.sessionId === session.sessionId);
+          if (target && data && data.title) {
+            target.title = data.title;
+          }
+          this.loadActions();
+        }).catch(err => {
+          if (err !== "cancel" && err !== "close") this.showApiError(err, "会话重命名失败");
+        }).finally(() => this.renamingSessionId = "");
       },
       generateReport() {
         this.reportLoading = true;
