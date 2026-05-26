@@ -39,7 +39,12 @@
         <div class="side-action-card" v-for="card in actionCards().slice(0, 2)" :key="card.key">
           <div class="side-action-head">
             <div class="side-action-title">{{card.title}}</div>
-            <span class="side-priority">{{priorityName(card)}}</span>
+            <div class="side-action-tools">
+              <span class="side-priority">{{priorityName(card)}}</span>
+              <button type="button" class="side-action-delete" title="删除智能行动" @click.stop="deleteActionCard(card)">
+                <i class="el-icon-close"></i>
+              </button>
+            </div>
           </div>
           <div class="side-action-desc">{{card.action}}</div>
           <button type="button" class="side-action-btn" @click="createDraftFromAction(card, false)">一键采纳</button>
@@ -52,7 +57,12 @@
       <div class="section-title">历史会话</div>
       <div class="session-list" v-if="sessions.length">
         <div class="session-card" :class="{active: activeSessionId === s.sessionId}" v-for="s in sessions" :key="s.sessionId" @click="selectSession(s)">
-          <div class="session-card-title">{{s.title}}</div>
+          <div class="session-card-head">
+            <div class="session-card-title">{{s.title}}</div>
+            <button type="button" class="session-delete" title="删除会话" @click.stop="deleteSession(s)" :disabled="deletingSessionId === s.sessionId">
+              <i class="el-icon-delete"></i>
+            </button>
+          </div>
           <div class="session-card-meta">{{s.sceneName}} · {{s.messageCount}} 条消息</div>
         </div>
       </div>
@@ -252,6 +262,7 @@
           <div class="action-buttons">
             <el-button size="mini" type="primary" :loading="creatingSuggestionId === card.key" @click="createDraftFromAction(card, false)">一键采纳</el-button>
             <el-button size="mini" @click="createDraftFromAction(card, true)">修改后执行</el-button>
+            <el-button size="mini" type="danger" plain :loading="deletingSuggestionId === card.key" @click="deleteActionCard(card)">删除</el-button>
           </div>
         </div>
       </div>
@@ -261,7 +272,10 @@
     <section class="report-card" v-if="activeView === 'drafts'">
       <div class="card-head">
         <div class="card-title">优惠券草稿</div>
-        <el-button size="mini" icon="el-icon-refresh" :loading="draftLoading" @click="loadDrafts">刷新</el-button>
+        <div class="head-actions">
+          <el-button size="mini" icon="el-icon-refresh" :loading="draftLoading" @click="loadDrafts">刷新</el-button>
+          <el-button size="mini" type="danger" plain icon="el-icon-delete" :loading="clearingDrafts" :disabled="!drafts.length" @click="clearDrafts">清空未创建</el-button>
+        </div>
       </div>
       <div class="table-list" v-if="drafts.length">
         <div class="table-row draft-row" v-for="d in drafts" :key="d.draftId" @click="openDraft(d)">
@@ -277,6 +291,7 @@
             <el-button size="mini" type="primary" @click.stop="confirmDraft(d)" :disabled="d.status !== 1">确认</el-button>
             <el-button size="mini" @click.stop="openEffect(d)" :disabled="d.status !== 2">效果</el-button>
             <el-button size="mini" @click.stop="rejectDraft(d)" :disabled="d.status !== 1">拒绝</el-button>
+            <el-button size="mini" type="danger" plain :loading="deletingDraftId === d.draftId" @click.stop="deleteDraft(d)" :disabled="d.status === 2">删除</el-button>
           </div>
         </div>
       </div>
@@ -602,6 +617,7 @@
         <el-button size="small" @click="editDraft(draft)" :disabled="draft.status !== 1">编辑草稿</el-button>
         <el-button type="primary" size="small" :loading="confirmingDraftId === draft.draftId" @click="confirmDraft(draft)" :disabled="draft.status !== 1">确认创建</el-button>
         <el-button size="small" :loading="effectLoadingDraftId === draft.draftId" @click="openEffect(draft)" :disabled="draft.status !== 2">查看效果</el-button>
+        <el-button size="small" type="danger" plain :loading="deletingDraftId === draft.draftId" @click="deleteDraft(draft)" :disabled="draft.status === 2">删除草稿</el-button>
         <el-button size="small" @click="activeView = 'drafts'; loadDrafts()">查看列表</el-button>
         <el-button size="small" @click="draft = null">关闭</el-button>
       </div>
@@ -891,6 +907,10 @@
       actionLoading: false,
       knowledgeLoading: false,
       creatingSuggestionId: "",
+      deletingSessionId: "",
+      deletingSuggestionId: "",
+      deletingDraftId: "",
+      clearingDrafts: false,
       confirmingDraftId: "",
       editDialogVisible: false,
       effectDialogVisible: false,
@@ -912,6 +932,7 @@
       chatPrompt: "",
       chatAutoDraft: true,
       toolCallingMode: false,
+      hiddenActionKeys: [],
       quickPrompts: [
         "帮我分析最近7天订单",
         "帮我设计一张周末秒杀券",
@@ -1166,6 +1187,7 @@
       generateReport() {
         this.reportLoading = true;
         this.pageMessage = "Agent 正在读取订单、优惠券和评价数据...";
+        this.hiddenActionKeys = [];
         axios.post("/merchant-agent/shops/" + this.shopId + "/operation-report", {dateRange: this.dateRange})
           .then(({data}) => {
             this.report = data || {};
@@ -1249,6 +1271,7 @@
         this.report = data || {};
         this.lastAgentResult = data || {};
         this.activeSessionId = data.sessionId;
+        this.hiddenActionKeys = [];
         this.chatPrompt = "";
         if (data.toolCalling) {
           this.$message.success("Tool Calling 模式已完成");
@@ -1281,7 +1304,7 @@
         this.createDraftFromAction(this.normalizeSuggestion(suggestion), false);
       },
       createDraftFromAction(card, openEditor) {
-        const suggestionId = this.resolveSuggestionId();
+        const suggestionId = card.suggestionId || this.resolveSuggestionId();
         if (!suggestionId) {
           this.$message.warning("请先生成运营报告，再采纳 Agent 建议");
           return;
@@ -1317,6 +1340,8 @@
       normalizeSuggestion(suggestion) {
         return {
           key: suggestion.suggestionId,
+          source: "suggestion",
+          suggestionId: suggestion.suggestionId,
           type: suggestion.type,
           typeName: suggestion.typeName,
           title: suggestion.title,
@@ -1328,9 +1353,12 @@
         };
       },
       actionCards() {
+        const hidden = this.hiddenActionKeys || [];
         if (this.reportRecommendations.length) {
           return this.reportRecommendations.map((item, index) => ({
             key: (this.report.suggestionId || "report") + "-" + index,
+            source: "report",
+            suggestionId: this.report.suggestionId || "",
             type: item.type || "seckill",
             typeName: this.typeName(item.type),
             title: item.title || "运营动作建议",
@@ -1339,9 +1367,57 @@
             expectedEffect: item.expectedEffect || "提升活动转化效率",
             priority: item.priority || index + 1,
             riskLevel: item.riskLevel || 1
-          }));
+          })).filter(card => !hidden.includes(card.key));
         }
-        return this.suggestions.map(s => this.normalizeSuggestion(s));
+        return this.suggestions.map(s => this.normalizeSuggestion(s)).filter(card => !hidden.includes(card.key));
+      },
+      deleteActionCard(card) {
+        if (!card) return;
+        const tip = card.source === "suggestion"
+          ? "删除后该建议卡片不再展示；如果已经生成草稿，草稿和审计日志会继续保留。"
+          : "这是当前报告临时生成的建议，隐藏后不会影响后端数据。";
+        this.$confirm(tip, card.source === "suggestion" ? "删除智能行动" : "隐藏本次建议", {
+          confirmButtonText: "删除",
+          cancelButtonText: "取消",
+          type: "warning"
+        }).then(() => {
+          if (card.source !== "suggestion") {
+            this.hiddenActionKeys.push(card.key);
+            this.$message.success("已隐藏本次建议");
+            return null;
+          }
+          this.deletingSuggestionId = card.key;
+          return axios.delete("/merchant-agent/suggestions/" + card.suggestionId);
+        }).then((res) => {
+          if (res) {
+            this.$message.success("智能行动已删除");
+            this.loadSuggestions();
+            this.loadActions();
+          }
+        }).catch(err => {
+          if (err !== "cancel" && err !== "close") this.showApiError(err, "智能行动删除失败");
+        }).finally(() => this.deletingSuggestionId = "");
+      },
+      deleteSession(session) {
+        if (!session) return;
+        this.$confirm("删除后该会话和消息将不再出现在历史列表中，已生成的建议、草稿和审计日志仍会保留。", "删除历史会话", {
+          confirmButtonText: "删除",
+          cancelButtonText: "取消",
+          type: "warning"
+        }).then(() => {
+          this.deletingSessionId = session.sessionId;
+          return axios.delete("/merchant-agent/sessions/" + session.sessionId);
+        }).then(() => {
+          this.$message.success("历史会话已删除");
+          if (this.activeSessionId === session.sessionId) {
+            this.activeSessionId = "";
+            this.messages = [];
+          }
+          this.loadSessions();
+          this.loadActions();
+        }).catch(err => {
+          if (err !== "cancel" && err !== "close") this.showApiError(err, "历史会话删除失败");
+        }).finally(() => this.deletingSessionId = "");
       },
       typeName(type) {
         if (type === "seckill") return "秒杀活动";
@@ -1566,6 +1642,52 @@
         }).catch(err => {
           if (err !== "cancel") this.$message.error(err);
         });
+      },
+      deleteDraft(draft) {
+        if (!draft) return;
+        if (draft.status === 2) {
+          this.$message.warning("已创建真实优惠券的草稿需要保留审计记录，不能删除");
+          return;
+        }
+        this.$confirm("删除后该草稿将从列表移除，不会创建真实优惠券。", "删除活动草稿", {
+          confirmButtonText: "删除",
+          cancelButtonText: "取消",
+          type: "warning"
+        }).then(() => {
+          this.deletingDraftId = draft.draftId;
+          return axios.delete("/merchant-agent/drafts/" + draft.draftId);
+        }).then(() => {
+          this.$message.success("草稿已删除");
+          if (this.draft && this.draft.draftId === draft.draftId) {
+            this.draft = null;
+          }
+          this.loadDrafts();
+          this.loadActions();
+        }).catch(err => {
+          if (err !== "cancel" && err !== "close") this.showApiError(err, "草稿删除失败");
+        }).finally(() => this.deletingDraftId = "");
+      },
+      clearDrafts() {
+        if (!this.shopId || !this.drafts.length) return;
+        this.$confirm("将清空当前店铺未创建真实活动的草稿；已创建真实优惠券的草稿会自动跳过。", "一键清空草稿", {
+          confirmButtonText: "清空",
+          cancelButtonText: "取消",
+          type: "warning"
+        }).then(() => {
+          this.clearingDrafts = true;
+          return axios.delete("/merchant-agent/shops/" + this.shopId + "/drafts");
+        }).then(({data}) => {
+          const deleted = data && data.deletedCount !== undefined ? data.deletedCount : 0;
+          const skipped = data && data.skippedCreatedCount !== undefined ? data.skippedCreatedCount : 0;
+          this.$message.success("已清空 " + deleted + " 条草稿，跳过已创建 " + skipped + " 条");
+          if (this.draft && this.draft.status !== 2) {
+            this.draft = null;
+          }
+          this.loadDrafts();
+          this.loadActions();
+        }).catch(err => {
+          if (err !== "cancel" && err !== "close") this.showApiError(err, "清空草稿失败");
+        }).finally(() => this.clearingDrafts = false);
       },
       openKnowledgeCreate() {
         this.knowledgeEditingId = "";

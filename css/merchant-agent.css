@@ -111,6 +111,7 @@ body {
 }
 
 .session-card {
+  position: relative;
   padding: 12px;
   border: 1px solid #edf0f4;
   border-radius: 8px;
@@ -125,12 +126,43 @@ body {
   box-shadow: 0 8px 20px rgba(255, 102, 51, .10);
 }
 
+.session-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .session-card-title {
   font-size: 13px;
   font-weight: 800;
+  min-width: 0;
+  flex: 1;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.session-delete,
+.side-action-delete {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #a1a8b3;
+  cursor: pointer;
+}
+
+.session-delete:hover,
+.side-action-delete:hover {
+  background: #fff2ed;
+  color: #ff6633;
+}
+
+.session-delete:disabled {
+  cursor: not-allowed;
+  opacity: .5;
 }
 
 .session-card-meta {
@@ -157,6 +189,13 @@ body {
   justify-content: space-between;
   gap: 8px;
   align-items: flex-start;
+}
+
+.side-action-tools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .side-action-title {
@@ -352,6 +391,13 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 14px;
+}
+
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .card-title {
